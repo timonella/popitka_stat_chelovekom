@@ -6,11 +6,13 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.example.tiktak.domain.repository.DiaryRepository
 import com.example.tiktak.presentation.screens.*
-import com.example.tiktak.presentation.navigation.Screen // Импортируйте Screen из того же пакета
 
 @Composable
-fun NavGraph() {
+fun NavGraph(
+    diaryRepository: DiaryRepository  // Добавьте параметр
+) {
     val navController = rememberNavController()
 
     NavHost(
@@ -46,7 +48,11 @@ fun NavGraph() {
         }
 
         composable("statistics") {
-            StatisticsScreen(navController = navController)
+            // Передайте репозиторий в StatisticsScreen
+            StatisticsScreen(
+                navController = navController,
+                diaryRepository = diaryRepository
+            )
         }
 
         composable("settings") {

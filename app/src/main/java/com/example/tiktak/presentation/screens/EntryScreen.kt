@@ -170,7 +170,7 @@ fun EntryScreen(
                 file?.let {
                     val photoUri = FileProvider.getUriForFile(
                         context,
-                        "${context.packageName}.fileprovider", // Лучше писать так, чем хардкодить
+                        "${context.packageName}.fileprovider", // Убедитесь, что это совпадает с authorities в манифесте
                         it
                     )
                     cameraLauncher.launch(photoUri)
@@ -179,7 +179,6 @@ fun EntryScreen(
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
-                // Ты увидишь эту ошибку в логах
                 Toast.makeText(context, "Ошибка: ${e.message}", Toast.LENGTH_LONG).show()
             }
         }
@@ -189,16 +188,21 @@ fun EntryScreen(
         if (!hasCameraPermission) {
             cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
         } else {
-            val file = createTempFile("video")
-            if (file != null) {
-                val videoUri = FileProvider.getUriForFile(
-                    context,
-                    context.packageName + ".fileprovider",
-                    file
-                )
-                videoCaptureLauncher.launch(videoUri)
-            } else {
-                Toast.makeText(context, "Не удалось создать файл", Toast.LENGTH_SHORT).show()
+            try {
+                val file = createTempFile("video")
+                file?.let {
+                    val videoUri = FileProvider.getUriForFile(
+                        context,
+                        "${context.packageName}.fileprovider", // Исправил здесь
+                        it
+                    )
+                    videoCaptureLauncher.launch(videoUri)
+                } ?: run {
+                    Toast.makeText(context, "Не удалось создать файл", Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                Toast.makeText(context, "Ошибка: ${e.message}", Toast.LENGTH_LONG).show()
             }
         }
     }

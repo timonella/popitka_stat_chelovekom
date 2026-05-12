@@ -29,8 +29,6 @@ import com.example.tiktak.domain.model.DiaryEntry
 import com.example.tiktak.domain.model.Emotion
 import com.example.tiktak.presentation.common.components.LoadingSpinner
 import com.example.tiktak.presentation.navigation.Screen
-import com.example.tiktak.presentation.screens.MainViewModel
-import com.example.tiktak.presentation.screens.MainViewModelFactory
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
@@ -91,9 +89,12 @@ fun MainScreen(
                 },
                 actions = {
                     if (!showSearchBar) {
+                        // Кнопка поиска
                         IconButton(onClick = { showSearchBar = true }) {
                             Icon(Icons.Default.Search, contentDescription = "Поиск")
                         }
+
+                        // Кнопка фильтра
                         IconButton(onClick = { showFilterDialog = true }) {
                             BadgedBox(
                                 badge = {
@@ -114,6 +115,18 @@ fun MainScreen(
                                 )
                             }
                         }
+
+                        // Кнопка календаря
+                        IconButton(onClick = { navController.navigate(Screen.Calendar.route) }) {
+                            Icon(Icons.Default.DateRange, contentDescription = "Календарь")
+                        }
+
+                        // Кнопка статистики
+                        IconButton(onClick = { navController.navigate(Screen.Statistics.route) }) {
+                            Icon(Icons.Default.BarChart, contentDescription = "Статистика")
+                        }
+
+                        // Кнопка настроек
                         IconButton(onClick = { navController.navigate(Screen.Settings.route) }) {
                             Icon(Icons.Default.Settings, contentDescription = "Настройки")
                         }
@@ -516,7 +529,7 @@ fun FilterDialog(
                         FilterChip(
                             selected = selectedEmotion == emotion,
                             onClick = { onEmotionSelected(emotion) },
-                            label = { Text("${emotion.emoji} ${getEmotionDisplayName(emotion)}") },
+                            label = { Text("${emotion.emoji} ${emotion.displayName}") },
                             modifier = Modifier.fillMaxWidth()
                         )
                     }
@@ -534,22 +547,6 @@ fun FilterDialog(
             }
         }
     )
-}
-
-@Composable
-fun getEmotionDisplayName(emotion: Emotion): String {
-    return when (emotion) {
-        Emotion.HAPPY -> "Счастье"
-        Emotion.SAD -> "Грусть"
-        Emotion.ANGRY -> "Злость"
-        Emotion.CALM -> "Спокойствие"
-        Emotion.EXCITED -> "Восторг"
-        Emotion.TIRED -> "Усталость"
-        Emotion.GRATEFUL -> "Благодарность"
-        Emotion.LOVED -> "Любовь"
-        Emotion.WORRIED -> "Тревога"
-        Emotion.NORMAL -> "Нормально"
-    }
 }
 
 fun getDeclension(count: Int): String {

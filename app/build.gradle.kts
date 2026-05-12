@@ -122,4 +122,15 @@ dependencies {
     androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")
     androidTestImplementation(platform("androidx.compose:compose-bom:2024.10.00"))
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
+
+    implementation("com.github.PhilJay:MPAndroidChart:v3.1.0")
+
+    // For CSV export
+    implementation("com.opencsv:opencsv:5.9")
+
+    // For PDF export (iText)
+    implementation("com.itextpdf:itext7-core:7.2.5")
+
+    // For date picking
+    implementation("androidx.compose.material3:material3-window-size-class:1.3.1")
 }
