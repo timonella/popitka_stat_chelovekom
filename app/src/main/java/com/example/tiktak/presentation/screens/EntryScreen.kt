@@ -22,7 +22,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -35,8 +34,6 @@ import kotlinx.coroutines.launch
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.*
-import androidx.compose.foundation.clickable
-import androidx.compose.ui.unit.sp
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -64,7 +61,6 @@ fun EntryScreen(
     val coroutineScope = rememberCoroutineScope()
 
     var currentPhotoPath by remember { mutableStateOf<String?>(null) }
-    var currentVideoPath by remember { mutableStateOf<String?>(null) }
 
     // Проверка разрешений
     val hasCameraPermission = ContextCompat.checkSelfPermission(
@@ -108,16 +104,9 @@ fun EntryScreen(
     val videoCaptureLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.CaptureVideo()
     ) { success ->
-        if (success && currentVideoPath != null) {
-            viewModel.addVideo(currentVideoPath!!)
-            currentVideoPath = null
-        } else if (!success) {
-            // Если запись не удалась, удаляем временный файл
-            currentVideoPath?.let { path ->
-                File(path).delete()
-                currentVideoPath = null
-            }
-            Toast.makeText(context, "Запись видео не удалась", Toast.LENGTH_SHORT).show()
+        if (success && currentPhotoPath != null) {
+            viewModel.addVideo(currentPhotoPath!!)
+            currentPhotoPath = null
         }
     }
 
@@ -159,18 +148,13 @@ fun EntryScreen(
         val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
         val storageDir = context.getExternalFilesDir(null)
         return try {
-            val file = File.createTempFile(
-                if (type == "image") "JPEG_${timeStamp}_" else "VIDEO_${timeStamp}_",
+            File.createTempFile(
+                "JPEG_${timeStamp}_",
                 if (type == "image") ".jpg" else ".mp4",
                 storageDir
             ).apply {
-                if (type == "image") {
-                    currentPhotoPath = absolutePath
-                } else {
-                    currentVideoPath = absolutePath
-                }
+                currentPhotoPath = absolutePath
             }
-            file
         } catch (e: Exception) {
             e.printStackTrace()
             null
@@ -205,7 +189,7 @@ fun EntryScreen(
         if (!hasCameraPermission) {
             cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
         } else {
-            val file = createTempFile("video") // Передаем "video" вместо "image"
+            val file = createTempFile("video")
             if (file != null) {
                 val videoUri = FileProvider.getUriForFile(
                     context,
@@ -214,7 +198,7 @@ fun EntryScreen(
                 )
                 videoCaptureLauncher.launch(videoUri)
             } else {
-                Toast.makeText(context, "Не удалось создать файл для видео", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, "Не удалось создать файл", Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -365,72 +349,8 @@ fun EntryScreen(
                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
                                 items(videos) { videoPath ->
-                                    var showVideoPlayer by remember { mutableStateOf(false) }
-
-                                    if (showVideoPlayer) {
-                                        // Диалог с видео плеером
-                                        AlertDialog(
-                                            onDismissRequest = { showVideoPlayer = false },
-                                            confirmButton = {
-                                                TextButton(onClick = { showVideoPlayer = false }) {
-                                                    Text("Закрыть")
-                                                }
-                                            },
-                                            title = { Text("Видео") },
-                                            text = {
-                                                AndroidView(
-                                                    factory = { context ->
-                                                        android.widget.VideoView(context).apply {
-                                                            setVideoPath(videoPath)
-                                                            setOnPreparedListener { mp ->
-                                                                mp.isLooping = false
-                                                                start()
-                                                            }
-                                                        }
-                                                    },
-                                                    modifier = Modifier
-                                                        .fillMaxWidth()
-                                                        .height(400.dp)
-                                                )
-                                            }
-                                        )
-                                    }
-
                                     Box(
-                                        modifier = Modifier
-                                            .size(120.dp)
-                                            .clickable {
-                                                // Проверяем существует ли файл
-                                                val file = File(videoPath)
-                                                if (file.exists() && file.length() > 0) {
-                                                    // Открываем системным плеером
-                                                    try {
-                                                        val uri = if (videoPath.startsWith("content://")) {
-                                                            Uri.parse(videoPath)
-                                                        } else {
-                                                            FileProvider.getUriForFile(
-                                                                context,
-                                                                "${context.packageName}.fileprovider",
-                                                                file
-                                                            )
-                                                        }
-                                                        val intent = android.content.Intent(android.content.Intent.ACTION_VIEW).apply {
-                                                            setDataAndType(uri, "video/mp4")
-                                                            addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                                                        }
-                                                        context.startActivity(intent)
-                                                    } catch (e: Exception) {
-                                                        // Если не получилось открыть системным плеером, показываем в диалоге
-                                                        showVideoPlayer = true
-                                                    }
-                                                } else {
-                                                    Toast.makeText(
-                                                        context,
-                                                        "Видео файл не найден или поврежден",
-                                                        Toast.LENGTH_SHORT
-                                                    ).show()
-                                                }
-                                            }
+                                        modifier = Modifier.size(100.dp)
                                     ) {
                                         Card(
                                             modifier = Modifier.fillMaxSize(),
@@ -442,27 +362,13 @@ fun EntryScreen(
                                                 modifier = Modifier.fillMaxSize(),
                                                 contentAlignment = Alignment.Center
                                             ) {
-                                                // Иконка видео
                                                 Icon(
                                                     Icons.Default.PlayArrow,
                                                     contentDescription = "Видео",
-                                                    modifier = Modifier.size(48.dp),
-                                                    tint = MaterialTheme.colorScheme.primary
-                                                )
-
-                                                // Индикатор длительности (опционально)
-                                                Text(
-                                                    text = "MP4",
-                                                    modifier = Modifier
-                                                        .align(Alignment.BottomEnd)
-                                                        .padding(4.dp),
-                                                    fontSize = 10.sp,
-                                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                                    modifier = Modifier.size(48.dp)
                                                 )
                                             }
                                         }
-
-                                        // Кнопка удаления
                                         IconButton(
                                             onClick = { viewModel.removeVideo(videoPath) },
                                             modifier = Modifier

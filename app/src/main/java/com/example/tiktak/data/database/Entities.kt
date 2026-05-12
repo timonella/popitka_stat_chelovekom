@@ -17,7 +17,7 @@ data class DiaryEntity(
     val createdAt: Date,
     val updatedAt: Date,
     val images: List<String>,
-    val videos: List<String>,
+    val videos: List<String>,      // Новое поле
     val audioFiles: List<String>,  // Новое поле
     val documents: List<String>,   // Новое поле
     val audioPath: String?,
