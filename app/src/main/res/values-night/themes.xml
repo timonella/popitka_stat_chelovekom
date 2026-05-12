@@ -1,7 +1,17 @@
-<resources xmlns:tools="http://schemas.android.com/tools">
-    <!-- Base application theme. -->
-    <style name="Base.Theme.Tiktak" parent="Theme.Material3.DayNight.NoActionBar">
-        <!-- Customize your dark theme here. -->
-        <!-- <item name="colorPrimary">@color/my_dark_primary</item> -->
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.TikTak" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="colorPrimary">#D0BCFF</item>
+        <item name="colorPrimaryContainer">#4F378B</item>
+        <item name="colorOnPrimary">#381E72</item>
+        <item name="colorSecondary">#CCC2DC</item>
+        <item name="colorSecondaryContainer">#4A4458</item>
+        <item name="colorOnSecondary">#332D41</item>
+        <item name="colorError">#FFB4AB</item>
+        <item name="colorErrorContainer">#93000A</item>
+        <item name="colorOnError">#690005</item>
+
+        <item name="android:statusBarColor">#4F378B</item>
+        <item name="android:windowLightStatusBar">false</item>
     </style>
 </resources>
