@@ -1,6 +1,5 @@
 package com.example.tiktak.data.database
 
-
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 import com.example.tiktak.domain.model.DiaryEntry
@@ -18,6 +17,9 @@ data class DiaryEntity(
     val createdAt: Date,
     val updatedAt: Date,
     val images: List<String>,
+    val videos: List<String>,      // Новое поле
+    val audioFiles: List<String>,  // Новое поле
+    val documents: List<String>,   // Новое поле
     val audioPath: String?,
     val location: String?,
     val weather: String?,
@@ -34,6 +36,9 @@ fun DiaryEntity.toDiaryEntry(): DiaryEntry {
         createdAt = createdAt,
         updatedAt = updatedAt,
         images = images,
+        videos = videos,
+        audioFiles = audioFiles,
+        documents = documents,
         audioPath = audioPath,
         location = location,
         weather = weather,
@@ -51,6 +56,9 @@ fun DiaryEntry.toEntity(): DiaryEntity {
         createdAt = createdAt,
         updatedAt = updatedAt,
         images = images,
+        videos = videos,
+        audioFiles = audioFiles,
+        documents = documents,
         audioPath = audioPath,
         location = location,
         weather = weather,

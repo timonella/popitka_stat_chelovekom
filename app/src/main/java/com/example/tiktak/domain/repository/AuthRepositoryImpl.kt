@@ -1,4 +1,4 @@
-package com.example.tiktak.domain.repository
+package com.example.tiktak.data.repository
 
 import android.content.Context
 import androidx.datastore.core.DataStore
@@ -37,7 +37,6 @@ class AuthRepositoryImpl(private val context: Context) : AuthRepository {
 
     override suspend fun login(email: String, password: String): Result<User> {
         return try {
-            // Симуляция API вызова
             kotlinx.coroutines.delay(1000)
 
             if (email.isNotEmpty() && password.isNotEmpty()) {
@@ -61,17 +60,18 @@ class AuthRepositoryImpl(private val context: Context) : AuthRepository {
         return try {
             kotlinx.coroutines.delay(1000)
 
-            if (email.isNotEmpty() && password.isNotEmpty() && name.isNotEmpty()) {
+            if (email.isNotEmpty() && password.isNotEmpty()) {
+                val userName = if (name.isNotEmpty()) name else email.substringBefore("@")
                 val user = User(
                     id = "user_${System.currentTimeMillis()}",
                     email = email,
-                    name = name
+                    name = userName
                 )
 
                 saveUserData(user)
                 Result.success(user)
             } else {
-                Result.failure(Exception("Все поля обязательны для заполнения"))
+                Result.failure(Exception("Email и пароль обязательны для заполнения"))
             }
         } catch (e: Exception) {
             Result.failure(e)

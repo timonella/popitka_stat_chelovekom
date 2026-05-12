@@ -2,7 +2,7 @@ package com.example.tiktak.di
 
 import android.content.Context
 import com.example.tiktak.data.database.AppDatabase
-import com.example.tiktak.domain.repository.AuthRepositoryImpl
+import com.example.tiktak.data.repository.AuthRepositoryImpl
 import com.example.tiktak.data.repository.DiaryRepositoryImpl
 import com.example.tiktak.domain.repository.AuthRepository
 import com.example.tiktak.domain.repository.DiaryRepository

@@ -1,7 +1,6 @@
 package com.example.tiktak.domain.model
 
 import java.util.Date
-import kotlin.collections.emptyList  // Явный импорт
 
 data class DiaryEntry(
     val id: String = "",
@@ -11,6 +10,9 @@ data class DiaryEntry(
     val createdAt: Date,
     val updatedAt: Date,
     val images: List<String> = emptyList(),
+    val videos: List<String> = emptyList(),
+    val audioFiles: List<String> = emptyList(),
+    val documents: List<String> = emptyList(),
     val audioPath: String? = null,
     val location: String? = null,
     val weather: String? = null,
@@ -18,17 +20,18 @@ data class DiaryEntry(
     val syncStatus: SyncStatus = SyncStatus.SYNCED
 )
 
-enum class Emotion(val emoji: String, val color: String) {
-    HAPPY("😊", "#FFD700"),
-    SAD("😢", "#4682B4"),
-    ANGRY("😠", "#DC143C"),
-    CALM("😌", "#90EE90"),
-    EXCITED("🤩", "#FF69B4"),
-    TIRED("😴", "#9370DB"),
-    GRATEFUL("🙏", "#FFA500"),
-    LOVED("🥰", "#FF6B6B"),
-    WORRIED("😟", "#CD853F"),
-    NORMAL("😐", "#A9A9A9")
+
+enum class Emotion(val emoji: String, val color: String, val displayName: String) {
+    HAPPY("😊", "#FFD700", "Счастье"),
+    SAD("😢", "#4682B4", "Грусть"),
+    ANGRY("😠", "#DC143C", "Злость"),
+    CALM("😌", "#90EE90", "Спокойствие"),
+    EXCITED("🤩", "#FF69B4", "Восторг"),
+    TIRED("😴", "#9370DB", "Усталость"),
+    GRATEFUL("🙏", "#FFA500", "Благодарность"),
+    LOVED("🥰", "#FF6B6B", "Любовь"),
+    WORRIED("😟", "#CD853F", "Тревога"),
+    NORMAL("😐", "#A9A9A9", "Нормально")
 }
 
 enum class SyncStatus {

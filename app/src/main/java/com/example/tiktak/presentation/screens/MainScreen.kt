@@ -9,6 +9,8 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -83,7 +85,7 @@ fun MainScreen(
                             showSearchBar = false
                             viewModel.updateSearchQuery("")
                         }) {
-                            Icon(Icons.Default.ArrowBack, contentDescription = "Назад")
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Назад")
                         }
                     }
                 },
@@ -111,6 +113,9 @@ fun MainScreen(
                                         MaterialTheme.colorScheme.onSurface
                                 )
                             }
+                        }
+                        IconButton(onClick = { navController.navigate(Screen.Settings.route) }) {
+                            Icon(Icons.Default.Settings, contentDescription = "Настройки")
                         }
                     }
                 },
@@ -238,7 +243,7 @@ fun DateHeader(date: String, entries: List<DiaryEntry>) {
             if (isToday) {
                 "Сегодня"
             } else {
-                SimpleDateFormat("d MMMM yyyy", Locale.getDefault()).format(parsedDate)
+                SimpleDateFormat("d MMMM yyyy", Locale("ru")).format(parsedDate)
             }
         } else date
     }
@@ -262,7 +267,7 @@ fun DateHeader(date: String, entries: List<DiaryEntry>) {
         )
 
         Spacer(modifier = Modifier.height(8.dp))
-        Divider()
+        HorizontalDivider()
     }
 }
 
@@ -404,7 +409,7 @@ fun EntryCard(
                 ) {
                     entry.tags.take(3).forEach { tag ->
                         AssistChip(
-                            onClick = { /* Фильтр по тегу */ },
+                            onClick = { },
                             label = { Text("#$tag", style = MaterialTheme.typography.labelSmall) },
                             modifier = Modifier.height(24.dp)
                         )
@@ -412,7 +417,7 @@ fun EntryCard(
 
                     if (entry.tags.size > 3) {
                         AssistChip(
-                            onClick = { /* Показать все теги */ },
+                            onClick = { },
                             label = { Text("+${entry.tags.size - 3}", style = MaterialTheme.typography.labelSmall) },
                             modifier = Modifier.height(24.dp)
                         )
@@ -437,7 +442,7 @@ fun EmptyStateView(
         verticalArrangement = Arrangement.Center
     ) {
         Icon(
-            Icons.Default.MenuBook,
+            Icons.AutoMirrored.Filled.MenuBook,
             contentDescription = null,
             modifier = Modifier.size(80.dp),
             tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
@@ -511,7 +516,7 @@ fun FilterDialog(
                         FilterChip(
                             selected = selectedEmotion == emotion,
                             onClick = { onEmotionSelected(emotion) },
-                            label = { Text("${emotion.emoji} ${emotion.name.lowercase().replaceFirstChar { it.uppercase() }}") },
+                            label = { Text("${emotion.emoji} ${getEmotionDisplayName(emotion)}") },
                             modifier = Modifier.fillMaxWidth()
                         )
                     }
@@ -529,6 +534,22 @@ fun FilterDialog(
             }
         }
     )
+}
+
+@Composable
+fun getEmotionDisplayName(emotion: Emotion): String {
+    return when (emotion) {
+        Emotion.HAPPY -> "Счастье"
+        Emotion.SAD -> "Грусть"
+        Emotion.ANGRY -> "Злость"
+        Emotion.CALM -> "Спокойствие"
+        Emotion.EXCITED -> "Восторг"
+        Emotion.TIRED -> "Усталость"
+        Emotion.GRATEFUL -> "Благодарность"
+        Emotion.LOVED -> "Любовь"
+        Emotion.WORRIED -> "Тревога"
+        Emotion.NORMAL -> "Нормально"
+    }
 }
 
 fun getDeclension(count: Int): String {

@@ -11,7 +11,7 @@ class MyApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
-        val database = AppDatabase.getDatabase(this)
+        val database = AppDatabase.Companion.getDatabase(this)
         diaryRepository = DiaryRepositoryImpl(database.diaryDao())
     }
 }

@@ -33,6 +33,15 @@ class EntryViewModel(
     private val _images = MutableStateFlow<List<String>>(emptyList())
     val images = _images.asStateFlow()
 
+    private val _videos = MutableStateFlow<List<String>>(emptyList())
+    val videos = _videos.asStateFlow()
+
+    private val _audioFiles = MutableStateFlow<List<String>>(emptyList())
+    val audioFiles = _audioFiles.asStateFlow()
+
+    private val _documents = MutableStateFlow<List<String>>(emptyList())
+    val documents = _documents.asStateFlow()
+
     private val _isSaving = MutableStateFlow(false)
     val isSaving = _isSaving.asStateFlow()
 
@@ -50,6 +59,9 @@ class EntryViewModel(
                         _content.value = it.content
                         _selectedEmotion.value = it.emotion
                         _images.value = it.images
+                        _videos.value = it.videos ?: emptyList()
+                        _audioFiles.value = it.audioFiles ?: emptyList()
+                        _documents.value = it.documents ?: emptyList()
                     }
                     _isLoading.value = false
                 }
@@ -79,6 +91,30 @@ class EntryViewModel(
         _images.value = _images.value.filter { it != path }
     }
 
+    fun addVideo(path: String) {
+        _videos.value = _videos.value + path
+    }
+
+    fun removeVideo(path: String) {
+        _videos.value = _videos.value.filter { it != path }
+    }
+
+    fun addAudio(path: String) {
+        _audioFiles.value = _audioFiles.value + path
+    }
+
+    fun removeAudio(path: String) {
+        _audioFiles.value = _audioFiles.value.filter { it != path }
+    }
+
+    fun addDocument(path: String) {
+        _documents.value = _documents.value + path
+    }
+
+    fun removeDocument(path: String) {
+        _documents.value = _documents.value.filter { it != path }
+    }
+
     suspend fun saveEntry(): Boolean {
         if (_title.value.isBlank() || _content.value.isBlank()) {
             return false
@@ -97,6 +133,9 @@ class EntryViewModel(
             createdAt = existingEntry?.createdAt ?: now,
             updatedAt = now,
             images = _images.value,
+            videos = _videos.value,
+            audioFiles = _audioFiles.value,
+            documents = _documents.value,
             audioPath = existingEntry?.audioPath,
             location = existingEntry?.location,
             weather = existingEntry?.weather,

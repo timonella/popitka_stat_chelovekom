@@ -8,7 +8,7 @@ import android.content.Context
 
 @Database(
     entities = [DiaryEntity::class],
-    version = 1,
+    version = 2,  // Увеличьте версию с 1 на 2 (или выше)
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -25,7 +25,8 @@ abstract class AppDatabase : RoomDatabase() {
                     context.applicationContext,
                     AppDatabase::class.java,
                     "diary_database"
-                ).build()
+                ).fallbackToDestructiveMigration()  // Добавьте эту строку для автоматической миграции
+                    .build()
                 INSTANCE = instance
                 instance
             }
