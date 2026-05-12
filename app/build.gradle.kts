@@ -9,12 +9,12 @@ plugins {
 
 android {
     namespace = "com.example.tiktak"
-    compileSdk = 34
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "com.example.tiktak"
         minSdk = 24
-        targetSdk = 34
+        targetSdk = 35
         versionCode = 1
         versionName = "1.0"
 
@@ -45,7 +45,6 @@ android {
     }
 }
 
-// ✅ KAPT блок - ДОЛЖЕН БЫТЬ ЗДЕСЬ (после android, перед dependencies)
 kapt {
     correctErrorTypes = true
 }
@@ -63,6 +62,7 @@ dependencies {
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.material:material-icons-extended:1.6.7")
+    implementation("androidx.compose.ui:ui:1.11.1")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")

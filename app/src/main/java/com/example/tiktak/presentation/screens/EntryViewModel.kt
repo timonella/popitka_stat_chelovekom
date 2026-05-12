@@ -1,5 +1,7 @@
 package com.example.tiktak.presentation.screens
 
+import android.net.Uri
+import androidx.core.content.FileProvider
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.tiktak.domain.model.DiaryEntry
@@ -8,6 +10,8 @@ import com.example.tiktak.domain.repository.DiaryRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import org.bouncycastle.crypto.params.Blake3Parameters.context
+import java.io.File
 import java.util.*
 
 class EntryViewModel(
@@ -152,5 +156,18 @@ class EntryViewModel(
 
         _isSaving.value = false
         return result.isSuccess
+    }
+
+    // В вашем ViewModel добавьте метод для конвертации пути в Uri
+    fun getVideoUri(videoPath: String): Uri {
+        return if (videoPath.startsWith("content://")) {
+            Uri.parse(videoPath)
+        } else {
+            FileProvider.getUriForFile(
+                context,
+                "${context.packageName}.fileprovider",
+                File(videoPath)
+            )
+        }
     }
 }
