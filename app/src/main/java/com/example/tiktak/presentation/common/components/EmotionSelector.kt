@@ -28,7 +28,7 @@ fun EmotionSelector(
                 FilterChip(
                     selected = selectedEmotion == emotion,
                     onClick = { onEmotionSelected(emotion) },
-                    label = { Text("${emotion.emoji} ${emotion.name.lowercase().replaceFirstChar { it.uppercase() }}") },
+                    label = { Text("${emotion.emoji} ${emotion.displayName.lowercase().replaceFirstChar { it.uppercase() }}") },
                     modifier = Modifier.height(40.dp)
                 )
             }

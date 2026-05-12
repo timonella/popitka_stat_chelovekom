@@ -181,16 +181,22 @@ fun EntryScreen(
         if (!hasCameraPermission) {
             cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
         } else {
-            val file = createTempFile("image")
-            if (file != null) {
-                val photoUri = FileProvider.getUriForFile(
-                    context,
-                    context.packageName + ".fileprovider",
-                    file
-                )
-                cameraLauncher.launch(photoUri)
-            } else {
-                Toast.makeText(context, "Не удалось создать файл", Toast.LENGTH_SHORT).show()
+            try {
+                val file = createTempFile("image")
+                file?.let {
+                    val photoUri = FileProvider.getUriForFile(
+                        context,
+                        "${context.packageName}.fileprovider", // Лучше писать так, чем хардкодить
+                        it
+                    )
+                    cameraLauncher.launch(photoUri)
+                } ?: run {
+                    Toast.makeText(context, "Не удалось создать файл", Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                // Ты увидишь эту ошибку в логах
+                Toast.makeText(context, "Ошибка: ${e.message}", Toast.LENGTH_LONG).show()
             }
         }
     }
