@@ -32,7 +32,7 @@ fun VSRFAdBanner(
     val adData = remember {
         VSRFAdvertisement(
             title = "Служба по контракту",
-            message = "Стань частью команды защитников Отечества! Достойное денежное довольствие, жилье, льготы и социальные гарантии.",
+            message = "Стань частью команды защитников Отечества!",
             buttonText = "Узнать больше",
             buttonUrl = "https://contract.mil.ru",
             imageUrl = null
