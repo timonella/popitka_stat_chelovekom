@@ -123,7 +123,16 @@ fun NavGraph(
         }
 
         composable(Screen.Calendar.route) {
-            CalendarScreen(navController = navController)
+            val diaryRepository = remember {
+                val database = AppDatabase.getDatabase(context)
+                DiaryRepositoryImpl(database.diaryDao())
+            }
+            CalendarScreen(
+                navController = navController,
+                calendarViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
+                    factory = CalendarViewModelFactory(diaryRepository)
+                )
+            )
         }
 
         composable(Screen.Statistics.route) {

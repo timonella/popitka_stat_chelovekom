@@ -25,14 +25,13 @@ import com.example.tiktak.presentation.theme.VSRFAdvertisement
 
 @Composable
 fun VSRFAdBanner(
-    onClose: () -> Unit,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val adData = remember {
         VSRFAdvertisement(
             title = "Служба по контракту",
-            message = "Стань частью команды защитников Отечества! Достойное денежное довольствие, жилье, льготы и социальные гарантии.",
+            message = "Стань частью команды защитников Отечества!",
             buttonText = "Узнать больше",
             buttonUrl = "https://contract.mil.ru",
             imageUrl = null
@@ -106,17 +105,7 @@ fun VSRFAdBanner(
             }
 
             // Кнопка закрытия
-            IconButton(
-                onClick = onClose,
-                modifier = Modifier.size(32.dp)
-            ) {
-                Icon(
-                    Icons.Default.Close,
-                    contentDescription = "Закрыть",
-                    tint = Color.White,
-                    modifier = Modifier.size(18.dp)
-                )
-            }
+
         }
     }
 }
