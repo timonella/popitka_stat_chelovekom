@@ -39,7 +39,6 @@ class CalendarViewModel(
 
                 val allEntries = getAllEntriesInRange(startDate, endDate)
 
-                // ✅ Нормализуем время к началу дня для правильной группировки
                 val entriesMap = allEntries.groupBy { entry ->
                     val cal = Calendar.getInstance().apply { time = entry.createdAt }
                     cal.set(Calendar.HOUR_OF_DAY, 0)
@@ -53,7 +52,6 @@ class CalendarViewModel(
                 Log.d("CalendarViewModel", "Загружено ${allEntries.size} записей, дней с записями: ${entriesMap.size}")
                 Log.d("CalendarViewModel", "Дни с записями: ${entriesMap.keys}")
 
-                // ✅ Если есть выбранная дата, обновляем записи для нее
                 _selectedDate.value?.let { selectedDate ->
                     val dateKey = formatDateKey(selectedDate)
                     _entriesForSelectedDate.value = entriesMap[dateKey] ?: emptyList()
@@ -90,7 +88,6 @@ class CalendarViewModel(
     }
 }
 
-// Вспомогательные функции
 private fun getStartOfMonth(calendar: Calendar): Date {
     val cal = calendar.clone() as Calendar
     cal.set(Calendar.DAY_OF_MONTH, 1)
