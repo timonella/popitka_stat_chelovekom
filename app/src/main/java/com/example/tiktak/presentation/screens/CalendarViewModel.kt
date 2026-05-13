@@ -10,8 +10,6 @@ import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
 
-// CalendarViewModel.kt - исправленная версия
-
 class CalendarViewModel(
     private val diaryRepository: DiaryRepository
 ) : ViewModel() {
@@ -34,20 +32,33 @@ class CalendarViewModel(
             Log.d("CalendarViewModel", "Загрузка записей за месяц")
 
             try {
-                // Получаем начало и конец месяца
                 val startDate = getStartOfMonth(calendar)
                 val endDate = getEndOfMonth(calendar)
 
-                // ОДИН запрос за весь месяц вместо 30
+                Log.d("CalendarViewModel", "Диапазон: ${formatDateKey(startDate)} - ${formatDateKey(endDate)}")
+
                 val allEntries = getAllEntriesInRange(startDate, endDate)
 
-                // Группируем по дате (без времени)
+                // ✅ Нормализуем время к началу дня для правильной группировки
                 val entriesMap = allEntries.groupBy { entry ->
-                    formatDateKey(entry.createdAt)
+                    val cal = Calendar.getInstance().apply { time = entry.createdAt }
+                    cal.set(Calendar.HOUR_OF_DAY, 0)
+                    cal.set(Calendar.MINUTE, 0)
+                    cal.set(Calendar.SECOND, 0)
+                    cal.set(Calendar.MILLISECOND, 0)
+                    formatDateKey(cal.time)
                 }
 
                 _entriesByDate.value = entriesMap
                 Log.d("CalendarViewModel", "Загружено ${allEntries.size} записей, дней с записями: ${entriesMap.size}")
+                Log.d("CalendarViewModel", "Дни с записями: ${entriesMap.keys}")
+
+                // ✅ Если есть выбранная дата, обновляем записи для нее
+                _selectedDate.value?.let { selectedDate ->
+                    val dateKey = formatDateKey(selectedDate)
+                    _entriesForSelectedDate.value = entriesMap[dateKey] ?: emptyList()
+                    Log.d("CalendarViewModel", "Обновлены записи для выбранной даты $dateKey: ${_entriesForSelectedDate.value.size}")
+                }
 
             } catch (e: Exception) {
                 Log.e("CalendarViewModel", "Ошибка загрузки: ${e.message}", e)
@@ -59,7 +70,7 @@ class CalendarViewModel(
 
     private suspend fun getAllEntriesInRange(startDate: Date, endDate: Date): List<DiaryEntry> {
         return try {
-            diaryRepository.getEntriesInRange(startDate, endDate).first()
+            diaryRepository.getEntriesInRange(startDate, endDate).firstOrNull() ?: emptyList()
         } catch (e: Exception) {
             Log.e("CalendarViewModel", "Ошибка загрузки записей: ${e.message}")
             emptyList()
@@ -79,6 +90,7 @@ class CalendarViewModel(
     }
 }
 
+// Вспомогательные функции
 private fun getStartOfMonth(calendar: Calendar): Date {
     val cal = calendar.clone() as Calendar
     cal.set(Calendar.DAY_OF_MONTH, 1)

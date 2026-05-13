@@ -227,7 +227,7 @@ fun SettingsScreen(
                                     text = "Показывать баннеры поддержки ВСРФ",
                                     isChecked = zaNashikhAdsEnabled,
                                     onCheckedChange = { viewModel.updateZaNashikhAdsEnabled(it) },
-                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp)
                                 )
 
                                 Text(
@@ -450,18 +450,23 @@ fun SwitchWithText(
     onCheckedChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Row(
+    Column(
         modifier = modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         Text(
             text = text,
-            style = MaterialTheme.typography.bodyLarge
+            style = MaterialTheme.typography.bodyLarge,
+            modifier = Modifier.fillMaxWidth()
         )
-        Switch(
-            checked = isChecked,
-            onCheckedChange = onCheckedChange
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.End
+        ) {
+            Switch(
+                checked = isChecked,
+                onCheckedChange = onCheckedChange
+            )
+        }
     }
 }

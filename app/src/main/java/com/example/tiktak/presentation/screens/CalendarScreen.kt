@@ -1,16 +1,13 @@
 package com.example.tiktak.presentation.screens
 
-// Добавьте эти импорты в начале файла
-import com.example.tiktak.presentation.screens.createDateFromDay
-import com.example.tiktak.presentation.screens.formatDateForDisplay
-
-// ... остальной код
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -33,7 +30,6 @@ import com.example.tiktak.presentation.common.components.LoadingSpinner
 import com.example.tiktak.presentation.navigation.Screen
 import java.text.SimpleDateFormat
 import java.util.*
-import kotlin.let
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -101,6 +97,112 @@ fun CalendarScreen(
         }
 
         daysInMonthList = days
+    }
+    @Composable
+    fun CalendarDayComponent(
+        day: Int,
+        hasEntry: Boolean,
+        isSelected: Boolean,
+        onClick: () -> Unit
+    ) {
+        Box(
+            modifier = Modifier
+                .size(44.dp)
+                .clip(CircleShape)
+                .clickable { onClick() }
+                .then(
+                    if (isSelected) {
+                        Modifier.background(MaterialTheme.colorScheme.primary)
+                    } else if (hasEntry) {
+                        Modifier.background(MaterialTheme.colorScheme.primaryContainer)
+                    } else {
+                        Modifier
+                    }
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = day.toString(),
+                fontSize = 16.sp,
+                fontWeight = if (hasEntry || isSelected) FontWeight.Bold else FontWeight.Normal,
+                color = when {
+                    isSelected -> MaterialTheme.colorScheme.onPrimary
+                    hasEntry -> MaterialTheme.colorScheme.primary
+                    else -> MaterialTheme.colorScheme.onSurface
+                }
+            )
+
+            if (hasEntry && !isSelected) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = 2.dp)
+                        .size(4.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.primary)
+                )
+            }
+        }
+    }
+
+    @Composable
+    fun EntryCardComponent(
+        entry: DiaryEntry,
+        onClick: () -> Unit
+    ) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { onClick() },
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surface
+            ),
+            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(12.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text(
+                        text = entry.title.ifEmpty { "Запись" },
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                    )
+                    Text(
+                        text = if (entry.content.isNotEmpty()) {
+                            entry.content.take(60) + if (entry.content.length > 60) "..." else ""
+                        } else {
+                            "Нет содержимого"
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        maxLines = 2,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                Surface(
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Text(
+                            text = entry.emotion.emoji,
+                            fontSize = 18.sp
+                        )
+                    }
+                }
+            }
+        }
     }
 
     Scaffold(
@@ -248,23 +350,39 @@ fun CalendarScreen(
                     ),
                     shape = RoundedCornerShape(16.dp)
                 ) {
-                    if (entriesForSelectedDate.isNotEmpty()) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp)
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp)
+                    ) {
+                        // Заголовок с датой и кнопкой закрытия
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = "📅 ${SimpleDateFormat("d MMMM yyyy", Locale("ru")).format(selectedDate)}",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.Bold
-                                )
+                            Text(
+                                text = "📅 ${SimpleDateFormat("d MMMM yyyy", Locale("ru")).format(selectedDate)}",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
 
+                            Row {
+                                // Кнопка "Добавить запись"
+                                IconButton(
+                                    onClick = {
+                                        calendarViewModel.clearSelection()
+                                        navController.navigate(Screen.Entry.pass("new"))
+                                    }
+                                ) {
+                                    Icon(
+                                        Icons.Default.Add,
+                                        contentDescription = "Добавить запись",
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+
+                                // Кнопка "Закрыть"
                                 IconButton(
                                     onClick = { calendarViewModel.clearSelection() },
                                     modifier = Modifier.size(32.dp)
@@ -276,160 +394,63 @@ fun CalendarScreen(
                                     )
                                 }
                             }
-
-                            Spacer(modifier = Modifier.height(12.dp))
-
-                            entriesForSelectedDate.forEach { entry ->
-                                EntryCardComponent(
-                                    entry = entry,
-                                    onClick = {
-                                        navController.navigate(Screen.Entry.pass(entry.id))
-                                    }
-                                )
-                                Spacer(modifier = Modifier.height(8.dp))
-                            }
                         }
-                    } else {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(32.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Column(
-                                horizontalAlignment = Alignment.CenterHorizontally
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        // Список записей
+                        if (entriesForSelectedDate.isNotEmpty()) {
+                            LazyColumn(
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                Icon(
-                                    Icons.Default.Info,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(48.dp),
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                                Spacer(modifier = Modifier.height(8.dp))
-                                Text(
-                                    text = "Нет записей за этот день",
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                                Spacer(modifier = Modifier.height(4.dp))
-                                TextButton(
-                                    onClick = {
-                                        calendarViewModel.clearSelection()
-                                        navController.navigate(Screen.Entry.pass("new"))
-                                    }
+                                items(entriesForSelectedDate.size) { index ->
+                                    val entry = entriesForSelectedDate[index]
+                                    EntryCardComponent(
+                                        entry = entry,
+                                        onClick = {
+                                            navController.navigate(Screen.Entry.pass(entry.id))
+                                        }
+                                    )
+                                }
+                            }
+                        } else {
+                            // Пустое состояние
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(32.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally
                                 ) {
-                                    Text("➕ Создать запись")
+                                    Icon(
+                                        Icons.Default.Info,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(48.dp),
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Text(
+                                        text = "Нет записей за этот день",
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Button(
+                                        onClick = {
+                                            calendarViewModel.clearSelection()
+                                            navController.navigate(Screen.Entry.pass("new"))
+                                        }
+                                    ) {
+                                        Icon(Icons.Default.Add, contentDescription = null)
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text("Создать запись")
+                                    }
                                 }
                             }
                         }
                     }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun CalendarDayComponent(
-    day: Int,
-    hasEntry: Boolean,
-    isSelected: Boolean,
-    onClick: () -> Unit
-) {
-    Box(
-        modifier = Modifier
-            .size(44.dp)
-            .clip(CircleShape)
-            .clickable { onClick() }
-            .then(
-                if (isSelected) {
-                    Modifier.background(MaterialTheme.colorScheme.primary)
-                } else if (hasEntry) {
-                    Modifier.background(MaterialTheme.colorScheme.primaryContainer)
-                } else {
-                    Modifier
-                }
-            ),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = day.toString(),
-            fontSize = 16.sp,
-            fontWeight = if (hasEntry || isSelected) FontWeight.Bold else FontWeight.Normal,
-            color = when {
-                isSelected -> MaterialTheme.colorScheme.onPrimary
-                hasEntry -> MaterialTheme.colorScheme.primary
-                else -> MaterialTheme.colorScheme.onSurface
-            }
-        )
-
-        if (hasEntry && !isSelected) {
-            Box(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(bottom = 2.dp)
-                    .size(4.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primary)
-            )
-        }
-    }
-}
-
-@Composable
-fun EntryCardComponent(
-    entry: DiaryEntry,
-    onClick: () -> Unit
-) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onClick() },
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(
-                modifier = Modifier.weight(1f)
-            ) {
-                Text(
-                    text = entry.title.ifEmpty { "Запись" },
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1,
-                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
-                )
-                Text(
-                    text = if (entry.content.isNotEmpty()) {
-                        entry.content.take(60) + if (entry.content.length > 60) "..." else ""
-                    } else {
-                        "Нет содержимого"
-                    },
-                    style = MaterialTheme.typography.bodySmall,
-                    maxLines = 2,
-                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-
-            Surface(
-                shape = CircleShape,
-                color = MaterialTheme.colorScheme.primaryContainer,
-                modifier = Modifier.size(36.dp)
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Text(
-                        text = entry.emotion.emoji,
-                        fontSize = 18.sp
-                    )
                 }
             }
         }
