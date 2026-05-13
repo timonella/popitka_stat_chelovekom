@@ -19,7 +19,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.tiktak.data.repository.AuthRepositoryImpl
-import com.example.tiktak.domain.repository.AuthRepository  // Импортируйте интерфейс
+import com.example.tiktak.domain.repository.AuthRepository
 import com.example.tiktak.presentation.common.components.LoadingSpinner
 import com.example.tiktak.presentation.navigation.Screen
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -27,7 +27,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 class LoginViewModel(
-    private val authRepository: AuthRepository  // Используем интерфейс
+    private val authRepository: AuthRepository
 ) : ViewModel() {
 
     private val _isLoading = MutableStateFlow(false)
@@ -57,7 +57,7 @@ class LoginViewModel(
 }
 
 class LoginViewModelFactory(
-    private val authRepository: AuthRepository  // Используем интерфейс
+    private val authRepository: AuthRepository
 ) : ViewModelProvider.Factory {
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(LoginViewModel::class.java)) {
@@ -71,10 +71,11 @@ class LoginViewModelFactory(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LoginScreen(
-    navController: NavController
+    navController: NavController,
+    onLoginSuccess: () -> Unit
 ) {
     val context = LocalContext.current
-    val authRepository: AuthRepository = remember { AuthRepositoryImpl(context) }  // Явно указываем тип
+    val authRepository = remember { AuthRepositoryImpl(context) }
 
     val viewModel: LoginViewModel = viewModel(
         factory = LoginViewModelFactory(authRepository)
@@ -83,10 +84,31 @@ fun LoginScreen(
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
+    var emailError by remember { mutableStateOf<String?>(null) }
+    var passwordError by remember { mutableStateOf<String?>(null) }
 
     val isLoading by viewModel.isLoading.collectAsState()
     val error by viewModel.error.collectAsState()
     val coroutineScope = rememberCoroutineScope()
+
+    fun validateFields(): Boolean {
+        var isValid = true
+
+        emailError = when {
+            email.isBlank() -> "Введите email"
+            !android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches() -> "Введите корректный email"
+            else -> null
+        }
+
+        passwordError = when {
+            password.isBlank() -> "Введите пароль"
+            password.length < 6 -> "Пароль должен содержать минимум 6 символов"
+            else -> null
+        }
+
+        isValid = emailError == null && passwordError == null
+        return isValid
+    }
 
     LaunchedEffect(error) {
         if (error != null) {
@@ -124,32 +146,48 @@ fun LoginScreen(
 
                 OutlinedTextField(
                     value = email,
-                    onValueChange = { email = it },
+                    onValueChange = {
+                        email = it
+                        emailError = null
+                    },
                     label = { Text("Email") },
                     placeholder = { Text("example@mail.com") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                     modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
+                    singleLine = true,
+                    isError = emailError != null,
+                    supportingText = {
+                        if (emailError != null) {
+                            Text(text = emailError!!, color = MaterialTheme.colorScheme.error)
+                        }
+                    }
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
 
                 OutlinedTextField(
                     value = password,
-                    onValueChange = { password = it },
+                    onValueChange = {
+                        password = it
+                        passwordError = null
+                    },
                     label = { Text("Пароль") },
                     placeholder = { Text("Введите пароль") },
-                    visualTransformation = if (passwordVisible)
-                        VisualTransformation.None else PasswordVisualTransformation(),
+                    visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
+                    isError = passwordError != null,
+                    supportingText = {
+                        if (passwordError != null) {
+                            Text(text = passwordError!!, color = MaterialTheme.colorScheme.error)
+                        }
+                    },
                     trailingIcon = {
                         IconButton(onClick = { passwordVisible = !passwordVisible }) {
                             Icon(
-                                if (passwordVisible)
-                                    Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
-                                contentDescription = if (passwordVisible) "Скрыть пароль" else "Показать пароль"
+                                if (passwordVisible) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
+                                contentDescription = null
                             )
                         }
                     }
@@ -159,17 +197,17 @@ fun LoginScreen(
 
                 Button(
                     onClick = {
-                        coroutineScope.launch {
-                            val success = viewModel.login(email, password)
-                            if (success) {
-                                navController.navigate(Screen.Main.route) {
-                                    popUpTo(Screen.Login.route) { inclusive = true }
+                        if (validateFields()) {
+                            coroutineScope.launch {
+                                val success = viewModel.login(email, password)
+                                if (success) {
+                                    onLoginSuccess()
                                 }
                             }
                         }
                     },
                     modifier = Modifier.fillMaxWidth(),
-                    enabled = !isLoading && email.isNotEmpty() && password.isNotEmpty()
+                    enabled = !isLoading
                 ) {
                     if (isLoading) {
                         LoadingSpinner()

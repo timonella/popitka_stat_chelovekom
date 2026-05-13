@@ -28,9 +28,7 @@ import com.example.tiktak.MyApplication
 import com.example.tiktak.data.datastore.SettingsDataStore
 import com.example.tiktak.domain.model.DiaryEntry
 import com.example.tiktak.domain.model.Emotion
-import com.example.tiktak.presentation.common.components.LoadingSpinner
-import com.example.tiktak.presentation.common.components.PatrioticBanner
-import com.example.tiktak.presentation.common.components.VSRFAdBanner
+import com.example.tiktak.presentation.common.components.*
 import com.example.tiktak.presentation.navigation.Screen
 import com.example.tiktak.presentation.theme.ThemeType
 import kotlinx.coroutines.launch
@@ -66,6 +64,7 @@ fun MainScreen(
     val settingsDataStore = remember { SettingsDataStore(context) }
     val zaNashikhAdsEnabled by settingsDataStore.zaNashikhAdsEnabledFlow.collectAsState(initial = true)
     val currentTheme by settingsDataStore.themeFlow.collectAsState(initial = ThemeType.SYSTEM)
+    val isZaNashikh = currentTheme == ThemeType.ZA_NASHIKH
 
     // Подсчет активных фильтров
     val activeFiltersCount = listOf(
@@ -76,34 +75,11 @@ fun MainScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = {
-                    if (showSearchBar) {
-                        OutlinedTextField(
-                            value = searchQuery,
-                            onValueChange = viewModel::updateSearchQuery,
-                            modifier = Modifier.fillMaxWidth(),
-                            placeholder = { Text("Поиск записей...") },
-                            singleLine = true,
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = MaterialTheme.colorScheme.primary,
-                                unfocusedBorderColor = MaterialTheme.colorScheme.outline
-                            )
-                        )
-                    } else {
-                        Text("Мой дневник")
-                    }
-                },
-                navigationIcon = {
-                    if (showSearchBar) {
-                        IconButton(onClick = {
-                            showSearchBar = false
-                            viewModel.updateSearchQuery("")
-                        }) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Назад")
-                        }
-                    }
-                },
+            PatrioticTopAppBar(
+                title = if (showSearchBar) "" else "Мой дневник",
+                navController = navController,
+                showBackButton = false,
+                isZaNashikhTheme = isZaNashikh,
                 actions = {
                     if (!showSearchBar) {
                         IconButton(onClick = { showSearchBar = true }) {
@@ -144,11 +120,15 @@ fun MainScreen(
                         IconButton(onClick = { navController.navigate(Screen.Settings.route) }) {
                             Icon(Icons.Default.Settings, contentDescription = "Настройки")
                         }
+                    } else {
+                        IconButton(onClick = {
+                            showSearchBar = false
+                            viewModel.updateSearchQuery("")
+                        }) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Назад")
+                        }
                     }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(3.dp)
-                )
+                }
             )
         },
         floatingActionButton = {
@@ -190,7 +170,7 @@ fun MainScreen(
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         // Патриотические баннеры (только для темы "Za наших")
-                        if (zaNashikhAdsEnabled && showAd && currentTheme == ThemeType.ZA_NASHIKH) {
+                        if (zaNashikhAdsEnabled && showAd && isZaNashikh) {
                             item {
                                 VSRFAdBanner(
                                     onClose = { showAd = false },
@@ -206,6 +186,23 @@ fun MainScreen(
 
                             item {
                                 PatrioticBanner()
+                            }
+                        }
+
+                        // Поле поиска
+                        if (showSearchBar) {
+                            item {
+                                OutlinedTextField(
+                                    value = searchQuery,
+                                    onValueChange = viewModel::updateSearchQuery,
+                                    modifier = Modifier.fillMaxWidth(),
+                                    placeholder = { Text("Поиск записей...") },
+                                    singleLine = true,
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                        unfocusedBorderColor = MaterialTheme.colorScheme.outline
+                                    )
+                                )
                             }
                         }
 

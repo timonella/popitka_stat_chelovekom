@@ -1,88 +1,134 @@
 package com.example.tiktak.data.repository
 
 import android.content.Context
-import androidx.datastore.core.DataStore
-import androidx.datastore.preferences.core.*
-import androidx.datastore.preferences.preferencesDataStore
+import android.util.Patterns
 import com.example.tiktak.domain.model.User
 import com.example.tiktak.domain.repository.AuthRepository
 import com.example.tiktak.domain.repository.UserSettings
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.FirebaseUser
+import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.tasks.await
 
-private val Context.dataStore by preferencesDataStore("auth")
+class AuthRepositoryImpl(
+    private val context: Context
+) : AuthRepository {
 
-class AuthRepositoryImpl(private val context: Context) : AuthRepository {
+    private val auth = FirebaseAuth.getInstance()
+    private val firestore = FirebaseFirestore.getInstance()
 
-    private val dataStore = context.dataStore
+    private val _authState = MutableStateFlow<Boolean>(auth.currentUser != null)
 
-    companion object {
-        private val IS_LOGGED_IN = booleanPreferencesKey("is_logged_in")
-        private val USER_ID = stringPreferencesKey("user_id")
-        private val USER_EMAIL = stringPreferencesKey("user_email")
-        private val USER_NAME = stringPreferencesKey("user_name")
-        private val USER_AVATAR = stringPreferencesKey("user_avatar")
-        private val BIOMETRIC_ENABLED = booleanPreferencesKey("biometric_enabled")
-        private val NOTIFICATIONS_ENABLED = booleanPreferencesKey("notifications_enabled")
-        private val THEME = stringPreferencesKey("theme")
-    }
-
-    override fun getAuthState(): Flow<Boolean> {
-        return dataStore.data.map { preferences ->
-            preferences[IS_LOGGED_IN] ?: false
+    init {
+        auth.addAuthStateListener { firebaseAuth ->
+            _authState.value = firebaseAuth.currentUser != null
         }
     }
 
+    override fun getAuthState(): Flow<Boolean> = _authState
+
     override suspend fun login(email: String, password: String): Result<User> {
+        // Валидация email
+        if (email.isBlank()) {
+            return Result.failure(Exception("Введите email"))
+        }
+
+        if (!Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
+            return Result.failure(Exception("Введите корректный email адрес"))
+        }
+
+        // Валидация пароля
+        if (password.isBlank()) {
+            return Result.failure(Exception("Введите пароль"))
+        }
+
+        if (password.length < 6) {
+            return Result.failure(Exception("Пароль должен содержать минимум 6 символов"))
+        }
+
         return try {
-            kotlinx.coroutines.delay(1000)
-
-            if (email.isNotEmpty() && password.isNotEmpty()) {
-                val user = User(
-                    id = "user_${System.currentTimeMillis()}",
-                    email = email,
-                    name = email.substringBefore("@")
-                )
-
-                saveUserData(user)
-                Result.success(user)
-            } else {
-                Result.failure(Exception("Неверный email или пароль"))
-            }
+            val result = auth.signInWithEmailAndPassword(email, password).await()
+            val firebaseUser = result.user ?: throw Exception("Ошибка входа")
+            val user = firebaseUserToUser(firebaseUser)
+            Result.success(user)
         } catch (e: Exception) {
-            Result.failure(e)
+            val errorMessage = when {
+                e.message?.contains("The email address is badly formatted") == true ->
+                    "Неверный формат email"
+                e.message?.contains("There is no user record") == true ->
+                    "Пользователь с таким email не найден"
+                e.message?.contains("The password is invalid") == true ->
+                    "Неверный пароль"
+                e.message?.contains("The user account has been disabled") == true ->
+                    "Аккаунт заблокирован"
+                else -> "Ошибка входа: ${e.message}"
+            }
+            Result.failure(Exception(errorMessage))
         }
     }
 
     override suspend fun register(email: String, password: String, name: String): Result<User> {
+        // Валидация email
+        if (email.isBlank()) {
+            return Result.failure(Exception("Введите email"))
+        }
+
+        if (!Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
+            return Result.failure(Exception("Введите корректный email адрес"))
+        }
+
+        // Валидация пароля
+        if (password.isBlank()) {
+            return Result.failure(Exception("Введите пароль"))
+        }
+
+        if (password.length < 6) {
+            return Result.failure(Exception("Пароль должен содержать минимум 6 символов"))
+        }
+
+        // Валидация имени
+        val userName = if (name.isBlank()) email.substringBefore("@") else name
+
         return try {
-            kotlinx.coroutines.delay(1000)
+            val result = auth.createUserWithEmailAndPassword(email, password).await()
+            val firebaseUser = result.user ?: throw Exception("Ошибка регистрации")
 
-            if (email.isNotEmpty() && password.isNotEmpty()) {
-                val userName = if (name.isNotEmpty()) name else email.substringBefore("@")
-                val user = User(
-                    id = "user_${System.currentTimeMillis()}",
-                    email = email,
-                    name = userName
-                )
+            val user = User(
+                id = firebaseUser.uid,
+                email = email,
+                name = userName
+            )
 
-                saveUserData(user)
-                Result.success(user)
-            } else {
-                Result.failure(Exception("Email и пароль обязательны для заполнения"))
-            }
+            // Сохраняем пользователя в Firestore
+            val userData = hashMapOf(
+                "name" to userName,
+                "email" to email,
+                "createdAt" to System.currentTimeMillis()
+            )
+            firestore.collection("users").document(firebaseUser.uid)
+                .set(userData)
+                .await()
+
+            Result.success(user)
         } catch (e: Exception) {
-            Result.failure(e)
+            val errorMessage = when {
+                e.message?.contains("The email address is already in use") == true ->
+                    "Пользователь с таким email уже существует"
+                e.message?.contains("The email address is badly formatted") == true ->
+                    "Неверный формат email"
+                e.message?.contains("Password should be at least 6 characters") == true ->
+                    "Пароль должен содержать минимум 6 символов"
+                else -> "Ошибка регистрации: ${e.message}"
+            }
+            Result.failure(Exception(errorMessage))
         }
     }
 
     override suspend fun logout(): Result<Unit> {
         return try {
-            dataStore.edit { preferences ->
-                preferences.clear()
-            }
+            auth.signOut()
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
@@ -91,13 +137,13 @@ class AuthRepositoryImpl(private val context: Context) : AuthRepository {
 
     override suspend fun updateSettings(userId: String, settings: UserSettings): Result<Unit> {
         return try {
-            dataStore.edit { preferences ->
-                preferences[USER_NAME] = settings.name
-                preferences[USER_EMAIL] = settings.email
-                preferences[BIOMETRIC_ENABLED] = settings.enableBiometric
-                preferences[NOTIFICATIONS_ENABLED] = settings.enableNotifications
-                preferences[THEME] = settings.theme
-            }
+            firestore.collection("users").document(userId)
+                .update("settings", mapOf(
+                    "biometric" to settings.enableBiometric,
+                    "notifications" to settings.enableNotifications,
+                    "theme" to settings.theme
+                ))
+                .await()
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
@@ -105,31 +151,15 @@ class AuthRepositoryImpl(private val context: Context) : AuthRepository {
     }
 
     override fun getCurrentUser(): User? {
-        return runBlocking {
-            dataStore.data.first().let { preferences ->
-                if (preferences[IS_LOGGED_IN] == true) {
-                    User(
-                        id = preferences[USER_ID] ?: "",
-                        email = preferences[USER_EMAIL] ?: "",
-                        name = preferences[USER_NAME] ?: "",
-                        avatarUrl = preferences[USER_AVATAR],
-                        isBiometricEnabled = preferences[BIOMETRIC_ENABLED] ?: false
-                    )
-                } else null
-            }
-        }
+        val firebaseUser = auth.currentUser ?: return null
+        return firebaseUserToUser(firebaseUser)
     }
 
-    private suspend fun saveUserData(user: User) {
-        dataStore.edit { preferences ->
-            preferences[IS_LOGGED_IN] = true
-            preferences[USER_ID] = user.id
-            preferences[USER_EMAIL] = user.email
-            preferences[USER_NAME] = user.name
-            user.avatarUrl?.let { preferences[USER_AVATAR] = it }
-            preferences[BIOMETRIC_ENABLED] = user.isBiometricEnabled
-            preferences[NOTIFICATIONS_ENABLED] = true
-            preferences[THEME] = "light"
-        }
+    private fun firebaseUserToUser(firebaseUser: FirebaseUser): User {
+        return User(
+            id = firebaseUser.uid,
+            email = firebaseUser.email ?: "",
+            name = firebaseUser.displayName ?: firebaseUser.email?.substringBefore("@") ?: "Пользователь"
+        )
     }
 }

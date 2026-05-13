@@ -18,27 +18,13 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
-import com.example.tiktak.data.database.AppDatabase
 import com.example.tiktak.data.repository.AuthRepositoryImpl
-import com.example.tiktak.domain.model.User
 import com.example.tiktak.domain.repository.AuthRepository
-import com.example.tiktak.domain.repository.UserSettings
 import com.example.tiktak.presentation.common.components.LoadingSpinner
 import com.example.tiktak.presentation.navigation.Screen
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-
-// AuthRepository интерфейс (если нет - добавьте)
-interface AuthRepository {
-    fun getAuthState(): Flow<Boolean>
-    suspend fun login(email: String, password: String): Result<User>
-    suspend fun register(email: String, password: String, name: String): Result<User>
-    suspend fun logout(): Result<Unit>
-    suspend fun updateSettings(userId: String, settings: UserSettings): Result<Unit>
-    fun getCurrentUser(): User?
-}
 
 class RegisterViewModel(
     private val authRepository: AuthRepository
@@ -50,11 +36,11 @@ class RegisterViewModel(
     private val _error = MutableStateFlow<String?>(null)
     val error = _error.asStateFlow()
 
-    suspend fun register(email: String, password: String): Boolean {
+    suspend fun register(email: String, password: String, name: String): Boolean {
         _isLoading.value = true
         _error.value = null
 
-        val result = authRepository.register(email, password, email.substringBefore("@"))
+        val result = authRepository.register(email, password, name)
 
         _isLoading.value = false
 
@@ -70,7 +56,6 @@ class RegisterViewModel(
     }
 }
 
-// Фабрика для создания ViewModel
 class RegisterViewModelFactory(
     private val authRepository: AuthRepository
 ) : ViewModelProvider.Factory {
@@ -86,7 +71,8 @@ class RegisterViewModelFactory(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RegisterScreen(
-    navController: NavController
+    navController: NavController,
+    onRegistrationSuccess: () -> Unit
 ) {
     val context = LocalContext.current
     val authRepository = remember { AuthRepositoryImpl(context) }
@@ -99,45 +85,43 @@ fun RegisterScreen(
     var password by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
-    var localError by remember { mutableStateOf<String?>(null) }
+    var emailError by remember { mutableStateOf<String?>(null) }
+    var passwordError by remember { mutableStateOf<String?>(null) }
+    var confirmPasswordError by remember { mutableStateOf<String?>(null) }
 
     val isLoading by viewModel.isLoading.collectAsState()
     val apiError by viewModel.error.collectAsState()
     val coroutineScope = rememberCoroutineScope()
 
-    val displayError = localError ?: apiError
+    fun validateFields(): Boolean {
+        var isValid = true
 
-    LaunchedEffect(displayError) {
-        if (displayError != null) {
-            kotlinx.coroutines.delay(3000)
-            localError = null
-            viewModel.clearError()
+        emailError = when {
+            email.isBlank() -> "Введите email"
+            !android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches() -> "Введите корректный email"
+            else -> null
         }
+
+        passwordError = when {
+            password.isBlank() -> "Введите пароль"
+            password.length < 6 -> "Пароль должен содержать минимум 6 символов"
+            else -> null
+        }
+
+        confirmPasswordError = when {
+            confirmPassword.isBlank() -> "Подтвердите пароль"
+            password != confirmPassword -> "Пароли не совпадают"
+            else -> null
+        }
+
+        isValid = emailError == null && passwordError == null && confirmPasswordError == null
+        return isValid
     }
 
-    fun validate(): Boolean {
-        return when {
-            email.isBlank() -> {
-                localError = "Введите email"
-                false
-            }
-            !android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches() -> {
-                localError = "Введите корректный email"
-                false
-            }
-            password.isBlank() -> {
-                localError = "Введите пароль"
-                false
-            }
-            password.length < 6 -> {
-                localError = "Пароль должен содержать минимум 6 символов"
-                false
-            }
-            password != confirmPassword -> {
-                localError = "Пароли не совпадают"
-                false
-            }
-            else -> true
+    LaunchedEffect(apiError) {
+        if (apiError != null) {
+            kotlinx.coroutines.delay(3000)
+            viewModel.clearError()
         }
     }
 
@@ -170,34 +154,48 @@ fun RegisterScreen(
 
                 OutlinedTextField(
                     value = email,
-                    onValueChange = { email = it },
+                    onValueChange = {
+                        email = it
+                        emailError = null
+                    },
                     label = { Text("Email") },
                     placeholder = { Text("example@mail.com") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                     modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
+                    singleLine = true,
+                    isError = emailError != null,
+                    supportingText = {
+                        if (emailError != null) {
+                            Text(text = emailError!!, color = MaterialTheme.colorScheme.error)
+                        }
+                    }
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
 
                 OutlinedTextField(
                     value = password,
-                    onValueChange = { password = it },
+                    onValueChange = {
+                        password = it
+                        passwordError = null
+                    },
                     label = { Text("Пароль") },
                     placeholder = { Text("Минимум 6 символов") },
-                    visualTransformation = if (passwordVisible)
-                        VisualTransformation.None else PasswordVisualTransformation(),
+                    visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
+                    isError = passwordError != null,
+                    supportingText = {
+                        if (passwordError != null) {
+                            Text(text = passwordError!!, color = MaterialTheme.colorScheme.error)
+                        }
+                    },
                     trailingIcon = {
                         IconButton(onClick = { passwordVisible = !passwordVisible }) {
                             Icon(
-                                if (passwordVisible)
-                                    Icons.Filled.VisibilityOff
-                                else
-                                    Icons.Filled.Visibility,
-                                contentDescription = if (passwordVisible) "Скрыть пароль" else "Показать пароль"
+                                if (passwordVisible) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
+                                contentDescription = null
                             )
                         }
                     }
@@ -207,26 +205,32 @@ fun RegisterScreen(
 
                 OutlinedTextField(
                     value = confirmPassword,
-                    onValueChange = { confirmPassword = it },
+                    onValueChange = {
+                        confirmPassword = it
+                        confirmPasswordError = null
+                    },
                     label = { Text("Подтвердите пароль") },
-                    visualTransformation = if (passwordVisible)
-                        VisualTransformation.None else PasswordVisualTransformation(),
+                    visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                     modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
+                    singleLine = true,
+                    isError = confirmPasswordError != null,
+                    supportingText = {
+                        if (confirmPasswordError != null) {
+                            Text(text = confirmPasswordError!!, color = MaterialTheme.colorScheme.error)
+                        }
+                    }
                 )
 
                 Spacer(modifier = Modifier.height(24.dp))
 
                 Button(
                     onClick = {
-                        if (validate()) {
+                        if (validateFields()) {
                             coroutineScope.launch {
-                                val success = viewModel.register(email, password)
+                                val success = viewModel.register(email, password, email.substringBefore("@"))
                                 if (success) {
-                                    navController.navigate(Screen.Main.route) {
-                                        popUpTo(Screen.Register.route) { inclusive = true }
-                                    }
+                                    onRegistrationSuccess()
                                 }
                             }
                         }
@@ -250,7 +254,7 @@ fun RegisterScreen(
                 }
             }
 
-            if (displayError != null) {
+            if (apiError != null) {
                 Card(
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
@@ -260,7 +264,7 @@ fun RegisterScreen(
                     )
                 ) {
                     Text(
-                        text = displayError ?: "",
+                        text = apiError ?: "",
                         modifier = Modifier.padding(16.dp),
                         color = MaterialTheme.colorScheme.onErrorContainer
                     )

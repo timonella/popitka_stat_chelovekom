@@ -138,28 +138,37 @@ fun PatrioticBanner(
             modifier = Modifier.padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            // Георгиевская лента в баннере
+            StGeorgeRibbonHeader()
+
+            Spacer(modifier = Modifier.height(12.dp))
+
             Text(
                 text = "Za наших!",
-                fontSize = 20.sp,
+                fontSize = 24.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color.White
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = "Вместе к Победе!",
-                fontSize = 14.sp,
+                text = "Слава Героям!",
+                fontSize = 16.sp,
                 color = Color.White.copy(alpha = 0.9f)
             )
             Spacer(modifier = Modifier.height(8.dp))
+
             Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("🇷🇺", fontSize = 24.sp)
-                Text("Z", fontSize = 28.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                Text("OV", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                Text("🇷🇺", fontSize = 24.sp)
+                Text("🇷🇺", fontSize = 32.sp)
+                Text("Z", fontSize = 36.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                Text("OV", fontSize = 28.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                Text("🇷🇺", fontSize = 32.sp)
             }
+
+            Spacer(modifier = Modifier.height(12.dp))
+            StGeorgeRibbon()
         }
     }
 }

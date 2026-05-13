@@ -17,7 +17,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.tiktak.data.datastore.SettingsDataStore
 import com.example.tiktak.data.repository.AuthRepositoryImpl
-import com.example.tiktak.presentation.common.components.LoadingSpinner
+import com.example.tiktak.presentation.common.components.*
 import com.example.tiktak.presentation.navigation.Screen
 import com.example.tiktak.presentation.screens.settings.SettingsViewModel
 import com.example.tiktak.presentation.theme.ThemeType
@@ -48,20 +48,34 @@ fun SettingsScreen(
     val zaNashikhAdsEnabled by viewModel.zaNashikhAdsEnabled.collectAsState()
 
     var showLogoutDialog by remember { mutableStateOf(false) }
+    val isZaNashikh = currentTheme == ThemeType.ZA_NASHIKH
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Настройки") },
-                navigationIcon = {
-                    IconButton(onClick = { navController.navigateUp() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Назад")
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer
+            Column {
+                if (isZaNashikh) {
+                    StGeorgeRibbonHeader()
+                }
+
+                TopAppBar(
+                    title = { Text("Настройки") },
+                    navigationIcon = {
+                        IconButton(onClick = { navController.navigateUp() }) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Назад")
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = if (isZaNashikh)
+                            MaterialTheme.colorScheme.primaryContainer
+                        else
+                            MaterialTheme.colorScheme.primaryContainer
+                    )
                 )
-            )
+
+                if (isZaNashikh) {
+                    StGeorgeRibbon()
+                }
+            }
         }
     ) { paddingValues ->
         Box(
@@ -279,7 +293,7 @@ fun SettingsScreen(
                                 }
 
                                 Button(
-                                    onClick = { navController.navigate("sync_settings") },
+                                    onClick = { navController.navigate(Screen.SyncSettings.route) },
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .padding(horizontal = 16.dp, vertical = 4.dp),
