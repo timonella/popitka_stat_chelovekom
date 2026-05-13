@@ -13,96 +13,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.tiktak.data.datastore.SettingsDataStore
 import com.example.tiktak.data.repository.AuthRepositoryImpl
-import com.example.tiktak.domain.repository.AuthRepository
 import com.example.tiktak.presentation.common.components.LoadingSpinner
 import com.example.tiktak.presentation.navigation.Screen
+import com.example.tiktak.presentation.screens.settings.SettingsViewModel
 import com.example.tiktak.presentation.theme.ThemeType
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.launch
-
-class SettingsViewModel(
-    private val authRepository: AuthRepository,
-    private val settingsDataStore: SettingsDataStore
-) : ViewModel() {
-
-    private val _isLoading = MutableStateFlow(false)
-    val isLoading = _isLoading.asStateFlow()
-
-    private val _currentTheme = MutableStateFlow(ThemeType.SYSTEM)
-    val currentTheme = _currentTheme.asStateFlow()
-
-    private val _notificationsEnabled = MutableStateFlow(true)
-    val notificationsEnabled = _notificationsEnabled.asStateFlow()
-
-    private val _biometricEnabled = MutableStateFlow(false)
-    val biometricEnabled = _biometricEnabled.asStateFlow()
-
-    private val _user = MutableStateFlow(authRepository.getCurrentUser())
-    val user = _user.asStateFlow()
-
-    init {
-        loadSettings()
-    }
-
-    private fun loadSettings() {
-        viewModelScope.launch {
-            settingsDataStore.themeFlow.collect { theme ->
-                _currentTheme.value = theme
-            }
-        }
-
-        viewModelScope.launch {
-            settingsDataStore.notificationsFlow.collect { enabled ->
-                _notificationsEnabled.value = enabled
-            }
-        }
-
-        viewModelScope.launch {
-            settingsDataStore.biometricFlow.collect { enabled ->
-                _biometricEnabled.value = enabled
-            }
-        }
-    }
-
-    fun updateTheme(themeType: ThemeType) {
-        viewModelScope.launch {
-            settingsDataStore.saveTheme(themeType)
-        }
-    }
-
-    fun updateNotifications(enabled: Boolean) {
-        _notificationsEnabled.value = enabled
-        viewModelScope.launch {
-            settingsDataStore.saveNotifications(enabled)
-        }
-    }
-
-    fun updateBiometric(enabled: Boolean) {
-        _biometricEnabled.value = enabled
-        viewModelScope.launch {
-            settingsDataStore.saveBiometric(enabled)
-        }
-    }
-
-    fun logout(onSuccess: () -> Unit) {
-        viewModelScope.launch {
-            _isLoading.value = true
-            val result = authRepository.logout()
-            _isLoading.value = false
-
-            if (result.isSuccess) {
-                onSuccess()
-            }
-        }
-    }
-}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -127,6 +45,7 @@ fun SettingsScreen(
     val currentTheme by viewModel.currentTheme.collectAsState()
     val notificationsEnabled by viewModel.notificationsEnabled.collectAsState()
     val biometricEnabled by viewModel.biometricEnabled.collectAsState()
+    val zaNashikhAdsEnabled by viewModel.zaNashikhAdsEnabled.collectAsState()
 
     var showLogoutDialog by remember { mutableStateOf(false) }
 
@@ -225,7 +144,14 @@ fun SettingsScreen(
                                     text = "Системная",
                                     icon = Icons.Default.Settings,
                                     isSelected = currentTheme == ThemeType.SYSTEM,
-                                    onClick = { viewModel.updateTheme(ThemeType.SYSTEM) },
+                                    onClick = { viewModel.updateTheme(ThemeType.SYSTEM) }
+                                )
+
+                                RadioButtonWithText(
+                                    text = "Za наших (патриотическая)",
+                                    icon = Icons.Default.Flag,
+                                    isSelected = currentTheme == ThemeType.ZA_NASHIKH,
+                                    onClick = { viewModel.updateTheme(ThemeType.ZA_NASHIKH) },
                                     modifier = Modifier.padding(bottom = 8.dp)
                                 )
                             }
@@ -283,6 +209,35 @@ fun SettingsScreen(
                         }
                     }
 
+                    // Патриотический контент
+                    item {
+                        Card(
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column {
+                                Text(
+                                    text = "Патриотический контент",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    modifier = Modifier.padding(16.dp)
+                                )
+
+                                SwitchWithText(
+                                    text = "Показывать баннеры поддержки ВСРФ",
+                                    isChecked = zaNashikhAdsEnabled,
+                                    onCheckedChange = { viewModel.updateZaNashikhAdsEnabled(it) },
+                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                                )
+
+                                Text(
+                                    text = "Баннеры с информацией о службе по контракту и поддержке ВСРФ",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                                )
+                            }
+                        }
+                    }
+
                     // Данные
                     item {
                         Card(
@@ -321,6 +276,20 @@ fun SettingsScreen(
                                     Icon(Icons.Default.Upload, contentDescription = null)
                                     Spacer(modifier = Modifier.width(8.dp))
                                     Text("Импортировать данные")
+                                }
+
+                                Button(
+                                    onClick = { navController.navigate("sync_settings") },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 16.dp, vertical = 4.dp),
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = MaterialTheme.colorScheme.secondaryContainer
+                                    )
+                                ) {
+                                    Icon(Icons.Default.Sync, contentDescription = null)
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("Настройки синхронизации")
                                 }
                             }
                         }

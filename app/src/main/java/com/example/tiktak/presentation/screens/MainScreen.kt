@@ -4,13 +4,10 @@ import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.MenuBook
@@ -28,10 +25,14 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.tiktak.MyApplication
+import com.example.tiktak.data.datastore.SettingsDataStore
 import com.example.tiktak.domain.model.DiaryEntry
 import com.example.tiktak.domain.model.Emotion
 import com.example.tiktak.presentation.common.components.LoadingSpinner
+import com.example.tiktak.presentation.common.components.PatrioticBanner
+import com.example.tiktak.presentation.common.components.VSRFAdBanner
 import com.example.tiktak.presentation.navigation.Screen
+import com.example.tiktak.presentation.theme.ThemeType
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
@@ -57,9 +58,14 @@ fun MainScreen(
     var showSearchBar by remember { mutableStateOf(false) }
     var showFilterDialog by remember { mutableStateOf(false) }
     var entryToDelete by remember { mutableStateOf<DiaryEntry?>(null) }
+    var showAd by remember { mutableStateOf(true) }
 
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
+
+    val settingsDataStore = remember { SettingsDataStore(context) }
+    val zaNashikhAdsEnabled by settingsDataStore.zaNashikhAdsEnabledFlow.collectAsState(initial = true)
+    val currentTheme by settingsDataStore.themeFlow.collectAsState(initial = ThemeType.SYSTEM)
 
     // Подсчет активных фильтров
     val activeFiltersCount = listOf(
@@ -183,6 +189,26 @@ fun MainScreen(
                         contentPadding = PaddingValues(16.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
+                        // Патриотические баннеры (только для темы "Za наших")
+                        if (zaNashikhAdsEnabled && showAd && currentTheme == ThemeType.ZA_NASHIKH) {
+                            item {
+                                VSRFAdBanner(
+                                    onClose = { showAd = false },
+                                    onClick = {
+                                        val intent = android.content.Intent(
+                                            android.content.Intent.ACTION_VIEW,
+                                            android.net.Uri.parse("https://contract.mil.ru")
+                                        )
+                                        context.startActivity(intent)
+                                    }
+                                )
+                            }
+
+                            item {
+                                PatrioticBanner()
+                            }
+                        }
+
                         val groupedEntries = entries.groupBy { entry ->
                             SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(entry.createdAt)
                         }
@@ -284,7 +310,7 @@ fun DateHeader(
 
     val dayOfWeek = remember(parsedDate) {
         if (parsedDate != null) {
-            SimpleDateFormat("EEEE", Locale("ru")).format(parsedDate)
+            SimpleDateFormat("EEEE", Locale("ru")).format(parsedDate).replaceFirstChar { it.uppercase() }
         } else ""
     }
 
@@ -311,7 +337,7 @@ fun DateHeader(
             )
 
             Text(
-                text = dayOfWeek.capitalize(),
+                text = dayOfWeek,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(end = 8.dp)
@@ -375,7 +401,6 @@ fun EntryCard(
                             overflow = TextOverflow.Ellipsis
                         )
 
-                        // ПОЛНАЯ ДАТА создания записи
                         Text(
                             text = viewModel.formatFullDate(entry.createdAt),
                             style = MaterialTheme.typography.bodySmall,
@@ -525,16 +550,14 @@ fun EnhancedFilterDialog(
                 modifier = Modifier
                     .fillMaxWidth()
                     .heightIn(max = 500.dp)
-                    .verticalScroll(rememberScrollState())
             ) {
-                // Секция эмоций
                 Text(
                     text = "Эмоции",
                     style = MaterialTheme.typography.titleSmall,
                     modifier = Modifier.padding(bottom = 8.dp)
                 )
 
-                LazyRow(
+                androidx.compose.foundation.lazy.LazyRow(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
@@ -559,7 +582,6 @@ fun EnhancedFilterDialog(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Секция типов вложений
                 Text(
                     text = "Тип вложений",
                     style = MaterialTheme.typography.titleSmall,
@@ -694,9 +716,4 @@ fun getDeclension(count: Int): String {
         count % 10 in 2..4 && (count % 100 < 10 || count % 100 > 20) -> "записи"
         else -> "записей"
     }
-}
-
-// Функция для капитализации первой буквы
-fun String.capitalize(): String {
-    return this.replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }
 }

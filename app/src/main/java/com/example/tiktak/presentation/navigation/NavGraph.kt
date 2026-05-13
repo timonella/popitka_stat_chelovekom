@@ -65,13 +65,8 @@ fun NavGraph() {
             SettingsScreen(navController = navController)
         }
 
-        // Дополнительные экраны для статистики
-        composable(Screen.StatisticsDetail.route) {
-            // StatisticsDetailScreen(navController = navController)
-        }
-
-        composable(Screen.StatisticsExport.route) {
-            // StatisticsExportScreen(navController = navController)
+        composable(Screen.SyncSettings.route) {
+            SyncSettingsScreen(navController = navController)
         }
     }
 }

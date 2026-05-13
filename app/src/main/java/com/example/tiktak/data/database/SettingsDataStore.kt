@@ -2,9 +2,7 @@ package com.example.tiktak.data.datastore
 
 import android.content.Context
 import androidx.datastore.core.DataStore
-import androidx.datastore.preferences.core.Preferences
-import androidx.datastore.preferences.core.edit
-import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.core.*
 import androidx.datastore.preferences.preferencesDataStore
 import com.example.tiktak.presentation.theme.ThemeType
 import kotlinx.coroutines.flow.Flow
@@ -18,6 +16,7 @@ class SettingsDataStore(private val context: Context) {
         private val THEME_KEY = stringPreferencesKey("theme")
         private val NOTIFICATIONS_KEY = stringPreferencesKey("notifications")
         private val BIOMETRIC_KEY = stringPreferencesKey("biometric")
+        private val ZA_NASHIKH_ADS_KEY = booleanPreferencesKey("za_nashikh_ads")
     }
 
     val themeFlow: Flow<ThemeType> = context.dataStore.data.map { preferences ->
@@ -25,6 +24,7 @@ class SettingsDataStore(private val context: Context) {
         when (themeString) {
             "LIGHT" -> ThemeType.LIGHT
             "DARK" -> ThemeType.DARK
+            "ZA_NASHIKH" -> ThemeType.ZA_NASHIKH
             else -> ThemeType.SYSTEM
         }
     }
@@ -35,6 +35,10 @@ class SettingsDataStore(private val context: Context) {
 
     val biometricFlow: Flow<Boolean> = context.dataStore.data.map { preferences ->
         preferences[BIOMETRIC_KEY]?.toBoolean() ?: false
+    }
+
+    val zaNashikhAdsEnabledFlow: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[ZA_NASHIKH_ADS_KEY] ?: true
     }
 
     suspend fun saveTheme(themeType: ThemeType) {
@@ -52,6 +56,12 @@ class SettingsDataStore(private val context: Context) {
     suspend fun saveBiometric(enabled: Boolean) {
         context.dataStore.edit { preferences ->
             preferences[BIOMETRIC_KEY] = enabled.toString()
+        }
+    }
+
+    suspend fun saveZaNashikhAdsEnabled(enabled: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[ZA_NASHIKH_ADS_KEY] = enabled
         }
     }
 }

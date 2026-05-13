@@ -8,7 +8,34 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
-// Светлая тема
+// Цвета для темы "Za наших" (стиль госуслуг России)
+private val ZaNashikhLightColorScheme = lightColorScheme(
+    primary = Color(0xFF0039A6),      // Синий как у госуслуг
+    onPrimary = Color(0xFFFFFFFF),
+    primaryContainer = Color(0xFFD6E4FF),
+    onPrimaryContainer = Color(0xFF001B3E),
+    secondary = Color(0xFFD52B1E),     // Красный как у госуслуг
+    onSecondary = Color(0xFFFFFFFF),
+    secondaryContainer = Color(0xFFFFDAD6),
+    onSecondaryContainer = Color(0xFF410002),
+    tertiary = Color(0xFF005BBB),      // Дополнительный синий
+    onTertiary = Color(0xFFFFFFFF),
+    tertiaryContainer = Color(0xFF005BBB),
+    onTertiaryContainer = Color(0xFFFFFFFF),
+    error = Color(0xFFD52B1E),
+    onError = Color(0xFFFFFFFF),
+    errorContainer = Color(0xFFFFDAD6),
+    onErrorContainer = Color(0xFF410002),
+    background = Color(0xFFF5F5F5),
+    onBackground = Color(0xFF1C1B1F),
+    surface = Color(0xFFFFFFFF),
+    onSurface = Color(0xFF1C1B1F),
+    surfaceVariant = Color(0xFFE7E0EC),
+    onSurfaceVariant = Color(0xFF49454F),
+    outline = Color(0xFF79747E)
+)
+
+// Стандартная светлая тема
 private val LightColorScheme = lightColorScheme(
     primary = Color(0xFF6200EE),
     onPrimary = Color(0xFFFFFFFF),
@@ -35,7 +62,7 @@ private val LightColorScheme = lightColorScheme(
     outline = Color(0xFF79747E)
 )
 
-// Темная тема
+// Стандартная темная тема
 private val DarkColorScheme = darkColorScheme(
     primary = Color(0xFFD0BCFF),
     onPrimary = Color(0xFF381E72),
@@ -65,27 +92,37 @@ private val DarkColorScheme = darkColorScheme(
 enum class ThemeType {
     LIGHT,
     DARK,
-    SYSTEM
+    SYSTEM,
+    ZA_NASHIKH  // Новая тема "Za наших"
 }
+
+// Данные для рекламы ВСРФ
+data class VSRFAdvertisement(
+    val title: String,
+    val message: String,
+    val buttonText: String,
+    val buttonUrl: String,
+    val imageUrl: String? = null
+)
 
 @Composable
 fun DiaryTheme(
     themeType: ThemeType = ThemeType.SYSTEM,
     content: @Composable () -> Unit
 ) {
-    val darkTheme = when (themeType) {
-        ThemeType.LIGHT -> false
-        ThemeType.DARK -> true
-        ThemeType.SYSTEM -> isSystemInDarkTheme()
+    val colorScheme = when (themeType) {
+        ThemeType.ZA_NASHIKH -> ZaNashikhLightColorScheme
+        ThemeType.LIGHT -> LightColorScheme
+        ThemeType.DARK -> DarkColorScheme
+        ThemeType.SYSTEM -> if (isSystemInDarkTheme()) DarkColorScheme else LightColorScheme
     }
-
-    val colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme
 
     val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as androidx.activity.ComponentActivity).window
-            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
+            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars =
+                themeType != ThemeType.DARK && themeType != ThemeType.ZA_NASHIKH
         }
     }
 
