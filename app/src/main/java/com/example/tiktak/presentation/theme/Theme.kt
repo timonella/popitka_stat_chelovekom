@@ -10,15 +10,15 @@ import androidx.core.view.WindowCompat
 
 // Цвета для светлой темы (оранжевый вместо фиолетового)
 private val LightColorScheme = lightColorScheme(
-    primary = Color(0xFFFF6B00),           // Оранжевый
+    primary = Color(0xFFFF6B00), 
     onPrimary = Color(0xFFFFFFFF),
-    primaryContainer = Color(0xFFFFE0B2),   // Светло-оранжевый
+    primaryContainer = Color(0xFFFFE0B2), 
     onPrimaryContainer = Color(0xFF663C00),
-    secondary = Color(0xFFFF9800),          // Оранжевый светлый
+    secondary = Color(0xFFFF9800),      
     onSecondary = Color(0xFFFFFFFF),
     secondaryContainer = Color(0xFFFFE0B2),
     onSecondaryContainer = Color(0xFF663C00),
-    tertiary = Color(0xFFFF5722),           // Оранжево-красный
+    tertiary = Color(0xFFFF5722),       
     onTertiary = Color(0xFFFFFFFF),
     tertiaryContainer = Color(0xFFFFCCBC),
     onTertiaryContainer = Color(0xFF4A1A00),
@@ -37,15 +37,15 @@ private val LightColorScheme = lightColorScheme(
 
 // Цвета для темной темы (оранжевый вместо фиолетового)
 private val DarkColorScheme = darkColorScheme(
-    primary = Color(0xFFFF8C42),           // Оранжевый светлый
+    primary = Color(0xFFFF8C42),     
     onPrimary = Color(0xFF4A2A00),
     primaryContainer = Color(0xFF663C00),
     onPrimaryContainer = Color(0xFFFFE0B2),
-    secondary = Color(0xFFFFB74D),          // Оранжевый
+    secondary = Color(0xFFFFB74D),      
     onSecondary = Color(0xFF4A2A00),
     secondaryContainer = Color(0xFF8C5200),
     onSecondaryContainer = Color(0xFFFFE0B2),
-    tertiary = Color(0xFFFF7043),           // Коралловый
+    tertiary = Color(0xFFFF7043),       
     onTertiary = Color(0xFF4A1A00),
     tertiaryContainer = Color(0xFF8C3A00),
     onTertiaryContainer = Color(0xFFFFCCBC),
@@ -62,17 +62,17 @@ private val DarkColorScheme = darkColorScheme(
     outline = Color(0xFF938F99)
 )
 
-// Цвета для патриотической темы "Za наших" (с элементами георгиевской ленты)
+// Цвета для патриотической темы Za наших
 private val ZaNashikhLightColorScheme = lightColorScheme(
-    primary = Color(0xFFD52B1E),            // Красный
+    primary = Color(0xFFD52B1E),     
     onPrimary = Color(0xFFFFFFFF),
     primaryContainer = Color(0xFFFF6B6B),
     onPrimaryContainer = Color(0xFF410002),
-    secondary = Color(0xFF0039A6),           // Синий
+    secondary = Color(0xFF0039A6),      
     onSecondary = Color(0xFFFFFFFF),
     secondaryContainer = Color(0xFFD6E4FF),
     onSecondaryContainer = Color(0xFF001B3E),
-    tertiary = Color(0xFFFFD700),            // Золотой
+    tertiary = Color(0xFFFFD700),          
     onTertiary = Color(0xFF332B00),
     tertiaryContainer = Color(0xFFFFE082),
     onTertiaryContainer = Color(0xFF332B00),
