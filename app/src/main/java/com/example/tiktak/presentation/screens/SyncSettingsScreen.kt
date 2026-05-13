@@ -66,7 +66,6 @@ fun SyncSettingsScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Статус синхронизации
             item {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
@@ -136,7 +135,6 @@ fun SyncSettingsScreen(
                 }
             }
 
-            // Настройки синхронизации
             item {
                 Card(
                     modifier = Modifier.fillMaxWidth()
@@ -187,7 +185,6 @@ fun SyncSettingsScreen(
                 }
             }
 
-            // Информация
             item {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
