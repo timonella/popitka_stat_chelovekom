@@ -51,7 +51,6 @@ class SyncViewModel(
     }
 
     private fun loadSyncSettings() {
-        // Загрузка настроек синхронизации из DataStore
     }
 
     fun startSync() {
@@ -62,12 +61,10 @@ class SyncViewModel(
 
     fun updateSyncEnabled(enabled: Boolean) {
         _syncEnabled.value = enabled
-        // Сохраняем настройку
     }
 
     fun updateSyncInterval(minutes: Int) {
         _syncInterval.value = minutes
-        // Сохраняем настройку
     }
 
     fun formatProgress(progress: Int): String {
