@@ -65,17 +65,14 @@ fun CalendarScreen(
 
     val dateFormat = SimpleDateFormat("MMMM yyyy", Locale("ru"))
 
-    // Загружаем записи при смене месяца
     LaunchedEffect(currentMonth) {
         calendarViewModel.loadEntriesForMonth(currentMonth)
     }
 
-    // Обновляем дни месяца при изменении записей
     LaunchedEffect(currentMonth, entriesByDate) {
         val tempCalendar = currentMonth.clone() as Calendar
         tempCalendar.set(Calendar.DAY_OF_MONTH, 1)
 
-        // Получаем номер первого дня недели (понедельник = 0)
         var firstDayOfWeek = tempCalendar.get(Calendar.DAY_OF_WEEK)
         firstDayOfWeek = if (firstDayOfWeek == Calendar.SUNDAY) 6 else firstDayOfWeek - 2
 
@@ -83,12 +80,10 @@ fun CalendarScreen(
 
         val days = mutableListOf<CalendarDayItem>()
 
-        // Добавляем пустые дни для выравнивания
         for (i in 0 until firstDayOfWeek) {
             days.add(CalendarDayItem.Empty)
         }
 
-        // Добавляем дни месяца
         for (day in 1..daysInMonth) {
             val date = createDateFromDay(currentMonth, day)
             val dateKey = formatDateForDisplay(date)
@@ -228,7 +223,6 @@ fun CalendarScreen(
                 .padding(paddingValues)
                 .padding(16.dp)
         ) {
-            // Навигация по месяцам
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(
@@ -268,7 +262,6 @@ fun CalendarScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Дни недели
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(
@@ -300,7 +293,6 @@ fun CalendarScreen(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Сетка календаря
             if (isLoading && daysInMonthList.isEmpty()) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
@@ -339,7 +331,6 @@ fun CalendarScreen(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Блок с записями на выбранную дату
             if (selectedDate != null) {
                 Card(
                     modifier = Modifier
@@ -355,21 +346,18 @@ fun CalendarScreen(
                             .fillMaxWidth()
                             .padding(16.dp)
                     ) {
-                        // Заголовок с датой и кнопкой закрытия
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = "📅 ${SimpleDateFormat("d MMMM yyyy", Locale("ru")).format(selectedDate)}",
+                                text = "${SimpleDateFormat("d MMMM yyyy", Locale("ru")).format(selectedDate)}",
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold
                             )
 
                             Row {
-                                // Кнопка "Добавить запись"
-                                IconButton(
                                     onClick = {
                                         calendarViewModel.clearSelection()
                                         navController.navigate(Screen.Entry.pass("new"))
@@ -382,7 +370,6 @@ fun CalendarScreen(
                                     )
                                 }
 
-                                // Кнопка "Закрыть"
                                 IconButton(
                                     onClick = { calendarViewModel.clearSelection() },
                                     modifier = Modifier.size(32.dp)
@@ -398,7 +385,6 @@ fun CalendarScreen(
 
                         Spacer(modifier = Modifier.height(12.dp))
 
-                        // Список записей
                         if (entriesForSelectedDate.isNotEmpty()) {
                             LazyColumn(
                                 verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -414,7 +400,6 @@ fun CalendarScreen(
                                 }
                             }
                         } else {
-                            // Пустое состояние
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
