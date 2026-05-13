@@ -52,6 +52,7 @@ class CalendarViewModel(
         }
     }
 
+    // Исправлено: принимаем Date, а не DayItem.Date
     fun selectDate(date: Date) {
         _selectedDate.value = date
         val dateKey = formatDateForDisplay(date)

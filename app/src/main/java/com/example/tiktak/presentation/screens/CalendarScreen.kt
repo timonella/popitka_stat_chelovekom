@@ -33,14 +33,26 @@ import java.util.*
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CalendarScreen(
-    navController: NavController,
-    calendarViewModel: CalendarViewModel = viewModel(
-        factory = CalendarViewModelFactory(
-            (navController.context.applicationContext as? com.example.tiktak.MyApplication)?.diaryRepository
-                ?: return@composable
-        )
-    )
+    navController: NavController
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val application = context.applicationContext as? com.example.tiktak.MyApplication
+    val diaryRepository = application?.diaryRepository
+
+    if (diaryRepository == null) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            Text("Ошибка: не удалось загрузить репозиторий")
+        }
+        return
+    }
+
+    val calendarViewModel: CalendarViewModel = viewModel(
+        factory = CalendarViewModelFactory(diaryRepository)
+    )
+
     val entriesByDate by calendarViewModel.entriesByDate.collectAsState()
     val isLoading by calendarViewModel.isLoading.collectAsState()
     val selectedDate by calendarViewModel.selectedDate.collectAsState()
@@ -48,7 +60,7 @@ fun CalendarScreen(
 
     val calendar = Calendar.getInstance()
     var currentMonth by remember { mutableStateOf(calendar.clone() as Calendar) }
-    var daysInMonthList by remember { mutableStateOf<List<DayItem>>(emptyList()) }
+    var daysInMonthList by remember { mutableStateOf<List<CalendarDayItem>>(emptyList()) }
 
     val dateFormat = SimpleDateFormat("MMMM yyyy", Locale("ru"))
     val coroutineScope = rememberCoroutineScope()
@@ -61,21 +73,21 @@ fun CalendarScreen(
     // Обновляем дни месяца при изменении месяца или записей
     LaunchedEffect(currentMonth, entriesByDate) {
         coroutineScope.launch {
-            delay(100) // Небольшая задержка для предотвращения мигания
+            delay(100)
             val tempCalendar = currentMonth.clone() as Calendar
             tempCalendar.set(Calendar.DAY_OF_MONTH, 1)
 
-            // Получаем номер первого дня недели (1 = воскресенье)
+            // Получаем номер первого дня недели
             var firstDayOfWeek = tempCalendar.get(Calendar.DAY_OF_WEEK)
             firstDayOfWeek = if (firstDayOfWeek == Calendar.SUNDAY) 6 else firstDayOfWeek - 2
 
             val daysInMonth = tempCalendar.getActualMaximum(Calendar.DAY_OF_MONTH)
 
-            val days = mutableListOf<DayItem>()
+            val days = mutableListOf<CalendarDayItem>()
 
             // Добавляем пустые дни для выравнивания
             for (i in 0 until firstDayOfWeek) {
-                days.add(DayItem.Empty)
+                days.add(CalendarDayItem.Empty)
             }
 
             // Добавляем дни месяца
@@ -83,7 +95,7 @@ fun CalendarScreen(
                 val date = createDateFromDay(currentMonth, day)
                 val dateKey = formatDateForDisplay(date)
                 val hasEntry = entriesByDate.containsKey(dateKey) && entriesByDate[dateKey]?.isNotEmpty() == true
-                days.add(DayItem.Date(day, date, hasEntry))
+                days.add(CalendarDayItem.DateItem(day, date, hasEntry))
             }
 
             daysInMonthList = days
@@ -204,10 +216,10 @@ fun CalendarScreen(
                 ) {
                     items(daysInMonthList) { dayItem ->
                         when (dayItem) {
-                            is DayItem.Empty -> {
+                            is CalendarDayItem.Empty -> {
                                 Box(modifier = Modifier.size(44.dp))
                             }
-                            is DayItem.Date -> {
+                            is CalendarDayItem.DateItem -> {
                                 CalendarDay(
                                     day = dayItem.day,
                                     hasEntry = dayItem.hasEntry,
@@ -434,7 +446,12 @@ fun isSameDay(date1: Date, date2: Date): Boolean {
             cal1.get(Calendar.DAY_OF_YEAR) == cal2.get(Calendar.DAY_OF_YEAR)
 }
 
-sealed class DayItem {
-    object Empty : DayItem()
-    data class Date(val day: Int, val date: java.util.Date, val hasEntry: Boolean) : DayItem()
+// Переименованный sealed class, чтобы избежать конфликта с java.util.Date
+sealed class CalendarDayItem {
+    object Empty : CalendarDayItem()
+    data class DateItem(
+        val day: Int,
+        val date: java.util.Date,
+        val hasEntry: Boolean
+    ) : CalendarDayItem()
 }

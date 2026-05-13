@@ -13,22 +13,6 @@ import com.example.tiktak.data.datastore.PinDataStore
 import com.example.tiktak.data.repository.DiaryRepositoryImpl
 import com.example.tiktak.presentation.screens.*
 
-sealed class Screen(val route: String) {
-    object Splash : Screen("splash")
-    object Login : Screen("login")
-    object Register : Screen("register")
-    object PinSetup : Screen("pin_setup")
-    object PinEntry : Screen("pin_entry")
-    object Main : Screen("main")
-    object Entry : Screen("entry/{entryId}") {
-        fun pass(id: String = "new") = "entry/$id"
-    }
-    object Calendar : Screen("calendar")
-    object Statistics : Screen("statistics")
-    object Settings : Screen("settings")
-    object SyncSettings : Screen("sync_settings")
-}
-
 @Composable
 fun NavGraph(
     isPinSetup: Boolean,
@@ -42,30 +26,6 @@ fun NavGraph(
         DiaryRepositoryImpl(database.diaryDao())
     }
 
-    fun onLoginSuccess() {
-        if (isPinSetup) {
-            navController.navigate(Screen.PinEntry.route) {
-                popUpTo(Screen.Login.route) { inclusive = true }
-            }
-        } else {
-            navController.navigate(Screen.PinSetup.route) {
-                popUpTo(Screen.Login.route) { inclusive = true }
-            }
-        }
-    }
-
-    fun onPinSuccess() {
-        navController.navigate(Screen.Main.route) {
-            popUpTo(Screen.PinEntry.route) { inclusive = true }
-        }
-    }
-
-    fun onPinSetupComplete() {
-        navController.navigate(Screen.Main.route) {
-            popUpTo(Screen.PinSetup.route) { inclusive = true }
-        }
-    }
-
     NavHost(
         navController = navController,
         startDestination = Screen.Splash.route
@@ -73,35 +33,73 @@ fun NavGraph(
         composable(Screen.Splash.route) {
             SplashScreen(
                 navController = navController,
-                onLoginSuccess = onLoginSuccess
+                onLoginSuccess = {
+                    if (isPinSetup) {
+                        navController.navigate(Screen.PinEntry.route) {
+                            popUpTo(Screen.Login.route) { inclusive = true }
+                        }
+                    } else {
+                        navController.navigate(Screen.PinSetup.route) {
+                            popUpTo(Screen.Login.route) { inclusive = true }
+                        }
+                    }
+                }
             )
         }
 
         composable(Screen.Login.route) {
             LoginScreen(
                 navController = navController,
-                onLoginSuccess = onLoginSuccess
+                onLoginSuccess = {
+                    if (isPinSetup) {
+                        navController.navigate(Screen.PinEntry.route) {
+                            popUpTo(Screen.Login.route) { inclusive = true }
+                        }
+                    } else {
+                        navController.navigate(Screen.PinSetup.route) {
+                            popUpTo(Screen.Login.route) { inclusive = true }
+                        }
+                    }
+                }
             )
         }
 
         composable(Screen.Register.route) {
             RegisterScreen(
                 navController = navController,
-                onRegistrationSuccess = onLoginSuccess
+                onRegistrationSuccess = {
+                    if (isPinSetup) {
+                        navController.navigate(Screen.PinEntry.route) {
+                            popUpTo(Screen.Register.route) { inclusive = true }
+                        }
+                    } else {
+                        navController.navigate(Screen.PinSetup.route) {
+                            popUpTo(Screen.Register.route) { inclusive = true }
+                        }
+                    }
+                }
             )
         }
 
         composable(Screen.PinSetup.route) {
             PinSetupScreen(
                 navController = navController,
-                onPinSetupComplete = onPinSetupComplete
+                onPinSetupComplete = {
+                    navController.navigate(Screen.Main.route) {
+                        popUpTo(Screen.PinSetup.route) { inclusive = true }
+                    }
+                }
             )
         }
 
         composable(Screen.PinEntry.route) {
             PinEntryScreen(
                 navController = navController,
-                onSuccess = onPinSuccess,
+                onSuccess = {
+                    navController.navigate(Screen.Main.route) {
+                        popUpTo(Screen.PinEntry.route) { inclusive = true }
+                    }
+                },
                 onBackToLogin = {
                     navController.navigate(Screen.Login.route) {
                         popUpTo(Screen.PinEntry.route) { inclusive = true }
@@ -123,15 +121,8 @@ fun NavGraph(
         }
 
         composable(Screen.Calendar.route) {
-            val diaryRepository = remember {
-                val database = AppDatabase.getDatabase(context)
-                DiaryRepositoryImpl(database.diaryDao())
-            }
             CalendarScreen(
-                navController = navController,
-                calendarViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
-                    factory = CalendarViewModelFactory(diaryRepository)
-                )
+                navController = navController
             )
         }
 
