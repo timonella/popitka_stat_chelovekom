@@ -43,24 +43,20 @@ class SplashViewModel(
     val loadMessage = _loadMessage.asStateFlow()
 
     suspend fun initializeApp(): Boolean {
-        // Шаг 1: Проверка авторизации
         _loadMessage.value = "Проверка авторизации..."
         _loadProgress.value = 25
         delay(500)
         val isLoggedIn = authRepository.getAuthState().first()
 
         if (isLoggedIn) {
-            // Шаг 2: Загрузка записей из базы данных
             _loadMessage.value = "Загрузка записей..."
             _loadProgress.value = 50
             delay(500)
 
-            // Шаг 3: Проверка синхронизации
             _loadMessage.value = "Проверка синхронизации..."
             _loadProgress.value = 75
             delay(500)
 
-            // Шаг 4: Завершение загрузки
             _loadMessage.value = "Готово!"
             _loadProgress.value = 100
             delay(300)
@@ -98,11 +94,8 @@ fun SplashScreen(
     LaunchedEffect(Unit) {
         val isLoggedIn = viewModel.initializeApp()
         if (isLoggedIn) {
-            // Пользователь авторизован - вызываем onLoginSuccess
-            // который перенаправит на PinEntry или PinSetup
             onLoginSuccess()
         } else {
-            // Пользователь не авторизован - идем на экран входа
             navController.navigate(Screen.Login.route) {
                 popUpTo(Screen.Splash.route) { inclusive = true }
             }
@@ -148,7 +141,6 @@ fun SplashScreen(
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // Индикатор загрузки
             LinearProgressIndicator(
                 progress = { progress / 100f },
                 modifier = Modifier
