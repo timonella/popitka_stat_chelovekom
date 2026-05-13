@@ -38,4 +38,8 @@ interface DiaryDao {
 
     @Query("SELECT COUNT(*) FROM diary_entries")
     suspend fun getEntryCount(): Int
+
+    // data/database/DiaryDao.kt
+    @Query("SELECT * FROM diary_entries WHERE createdAt BETWEEN :startDate AND :endDate ORDER BY createdAt DESC")
+    fun getEntriesInRange(startDate: Date, endDate: Date): Flow<List<DiaryEntity>>
 }

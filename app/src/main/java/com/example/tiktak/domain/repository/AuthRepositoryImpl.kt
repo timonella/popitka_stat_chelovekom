@@ -162,4 +162,6 @@ class AuthRepositoryImpl(
             name = firebaseUser.displayName ?: firebaseUser.email?.substringBefore("@") ?: "Пользователь"
         )
     }
+
+
 }

@@ -1,5 +1,10 @@
 package com.example.tiktak.presentation.screens
 
+// Добавьте эти импорты в начале файла
+import com.example.tiktak.presentation.screens.createDateFromDay
+import com.example.tiktak.presentation.screens.formatDateForDisplay
+
+// ... остальной код
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -16,6 +21,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -25,17 +31,16 @@ import androidx.navigation.NavController
 import com.example.tiktak.domain.model.DiaryEntry
 import com.example.tiktak.presentation.common.components.LoadingSpinner
 import com.example.tiktak.presentation.navigation.Screen
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
+import kotlin.let
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CalendarScreen(
     navController: NavController
 ) {
-    val context = androidx.compose.ui.platform.LocalContext.current
+    val context = LocalContext.current
     val application = context.applicationContext as? com.example.tiktak.MyApplication
     val diaryRepository = application?.diaryRepository
 
@@ -63,43 +68,39 @@ fun CalendarScreen(
     var daysInMonthList by remember { mutableStateOf<List<CalendarDayItem>>(emptyList()) }
 
     val dateFormat = SimpleDateFormat("MMMM yyyy", Locale("ru"))
-    val coroutineScope = rememberCoroutineScope()
 
     // Загружаем записи при смене месяца
     LaunchedEffect(currentMonth) {
         calendarViewModel.loadEntriesForMonth(currentMonth)
     }
 
-    // Обновляем дни месяца при изменении месяца или записей
+    // Обновляем дни месяца при изменении записей
     LaunchedEffect(currentMonth, entriesByDate) {
-        coroutineScope.launch {
-            delay(100)
-            val tempCalendar = currentMonth.clone() as Calendar
-            tempCalendar.set(Calendar.DAY_OF_MONTH, 1)
+        val tempCalendar = currentMonth.clone() as Calendar
+        tempCalendar.set(Calendar.DAY_OF_MONTH, 1)
 
-            // Получаем номер первого дня недели
-            var firstDayOfWeek = tempCalendar.get(Calendar.DAY_OF_WEEK)
-            firstDayOfWeek = if (firstDayOfWeek == Calendar.SUNDAY) 6 else firstDayOfWeek - 2
+        // Получаем номер первого дня недели (понедельник = 0)
+        var firstDayOfWeek = tempCalendar.get(Calendar.DAY_OF_WEEK)
+        firstDayOfWeek = if (firstDayOfWeek == Calendar.SUNDAY) 6 else firstDayOfWeek - 2
 
-            val daysInMonth = tempCalendar.getActualMaximum(Calendar.DAY_OF_MONTH)
+        val daysInMonth = tempCalendar.getActualMaximum(Calendar.DAY_OF_MONTH)
 
-            val days = mutableListOf<CalendarDayItem>()
+        val days = mutableListOf<CalendarDayItem>()
 
-            // Добавляем пустые дни для выравнивания
-            for (i in 0 until firstDayOfWeek) {
-                days.add(CalendarDayItem.Empty)
-            }
-
-            // Добавляем дни месяца
-            for (day in 1..daysInMonth) {
-                val date = createDateFromDay(currentMonth, day)
-                val dateKey = formatDateForDisplay(date)
-                val hasEntry = entriesByDate.containsKey(dateKey) && entriesByDate[dateKey]?.isNotEmpty() == true
-                days.add(CalendarDayItem.DateItem(day, date, hasEntry))
-            }
-
-            daysInMonthList = days
+        // Добавляем пустые дни для выравнивания
+        for (i in 0 until firstDayOfWeek) {
+            days.add(CalendarDayItem.Empty)
         }
+
+        // Добавляем дни месяца
+        for (day in 1..daysInMonth) {
+            val date = createDateFromDay(currentMonth, day)
+            val dateKey = formatDateForDisplay(date)
+            val hasEntry = entriesByDate.containsKey(dateKey) && entriesByDate[dateKey]?.isNotEmpty() == true
+            days.add(CalendarDayItem.DateItem(day, date, hasEntry))
+        }
+
+        daysInMonthList = days
     }
 
     Scaffold(
@@ -148,9 +149,7 @@ fun CalendarScreen(
                     }
 
                     Text(
-                        text = dateFormat.format(currentMonth.time).replaceFirstChar {
-                            if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString()
-                        },
+                        text = dateFormat.format(currentMonth.time),
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.Bold
                     )
@@ -220,7 +219,7 @@ fun CalendarScreen(
                                 Box(modifier = Modifier.size(44.dp))
                             }
                             is CalendarDayItem.DateItem -> {
-                                CalendarDay(
+                                CalendarDayComponent(
                                     day = dayItem.day,
                                     hasEntry = dayItem.hasEntry,
                                     isSelected = selectedDate?.let {
@@ -281,7 +280,7 @@ fun CalendarScreen(
                             Spacer(modifier = Modifier.height(12.dp))
 
                             entriesForSelectedDate.forEach { entry ->
-                                EntryCardCompact(
+                                EntryCardComponent(
                                     entry = entry,
                                     onClick = {
                                         navController.navigate(Screen.Entry.pass(entry.id))
@@ -331,7 +330,7 @@ fun CalendarScreen(
 }
 
 @Composable
-fun CalendarDay(
+fun CalendarDayComponent(
     day: Int,
     hasEntry: Boolean,
     isSelected: Boolean,
@@ -364,7 +363,6 @@ fun CalendarDay(
             }
         )
 
-        // Точка под числом, если есть запись и не выбран
         if (hasEntry && !isSelected) {
             Box(
                 modifier = Modifier
@@ -379,7 +377,7 @@ fun CalendarDay(
 }
 
 @Composable
-fun EntryCardCompact(
+fun EntryCardComponent(
     entry: DiaryEntry,
     onClick: () -> Unit
 ) {
@@ -422,7 +420,6 @@ fun EntryCardCompact(
                 )
             }
 
-            // Эмоция записи
             Surface(
                 shape = CircleShape,
                 color = MaterialTheme.colorScheme.primaryContainer,
@@ -439,19 +436,3 @@ fun EntryCardCompact(
     }
 }
 
-fun isSameDay(date1: Date, date2: Date): Boolean {
-    val cal1 = Calendar.getInstance().apply { time = date1 }
-    val cal2 = Calendar.getInstance().apply { time = date2 }
-    return cal1.get(Calendar.YEAR) == cal2.get(Calendar.YEAR) &&
-            cal1.get(Calendar.DAY_OF_YEAR) == cal2.get(Calendar.DAY_OF_YEAR)
-}
-
-// Переименованный sealed class, чтобы избежать конфликта с java.util.Date
-sealed class CalendarDayItem {
-    object Empty : CalendarDayItem()
-    data class DateItem(
-        val day: Int,
-        val date: java.util.Date,
-        val hasEntry: Boolean
-    ) : CalendarDayItem()
-}

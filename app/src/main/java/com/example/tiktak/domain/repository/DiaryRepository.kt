@@ -16,4 +16,6 @@ interface DiaryRepository {
     suspend fun searchEntries(query: String): Flow<List<DiaryEntry>>
     fun getRecentEntries(limit: Int = 20): Flow<List<DiaryEntry>>
     suspend fun getEntryCount(): Int
+
+    fun getEntriesInRange(startDate: Date, endDate: Date): Flow<List<DiaryEntry>>
 }

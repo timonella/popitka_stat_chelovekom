@@ -40,6 +40,13 @@ class DiaryRepositoryImpl(
         }
     }
 
+    // ✅ ТОЛЬКО ЗДЕСЬ реализуем метод
+    override fun getEntriesInRange(startDate: Date, endDate: Date): Flow<List<DiaryEntry>> {
+        return diaryDao.getEntriesInRange(startDate, endDate).map { entities ->
+            entities.map { it.toDiaryEntry() }
+        }
+    }
+
     @OptIn(ExperimentalUuidApi::class)
     override suspend fun insertEntry(entry: DiaryEntry): Result<String> {
         return try {
