@@ -25,7 +25,6 @@ import com.example.tiktak.presentation.theme.VSRFAdvertisement
 
 @Composable
 fun VSRFAdBanner(
-    onClose: () -> Unit,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -106,17 +105,7 @@ fun VSRFAdBanner(
             }
 
             // Кнопка закрытия
-            IconButton(
-                onClick = onClose,
-                modifier = Modifier.size(32.dp)
-            ) {
-                Icon(
-                    Icons.Default.Close,
-                    contentDescription = "Закрыть",
-                    tint = Color.White,
-                    modifier = Modifier.size(18.dp)
-                )
-            }
+
         }
     }
 }

@@ -193,7 +193,6 @@ fun MainScreen(
                         if (zaNashikhAdsEnabled && showAd && currentTheme == ThemeType.ZA_NASHIKH) {
                             item {
                                 VSRFAdBanner(
-                                    onClose = { showAd = false },
                                     onClick = {
                                         val intent = android.content.Intent(
                                             android.content.Intent.ACTION_VIEW,
