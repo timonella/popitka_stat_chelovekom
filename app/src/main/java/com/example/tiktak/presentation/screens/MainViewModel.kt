@@ -10,7 +10,6 @@ import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
 
-// Типы вложений для фильтрации
 enum class AttachmentType {
     PHOTO,
     VIDEO,
@@ -72,7 +71,6 @@ class MainViewModel(
     private fun applyFilters() {
         var filtered = allEntries
 
-        // Фильтр по поисковому запросу
         if (_searchQuery.value.isNotEmpty()) {
             filtered = filtered.filter { entry ->
                 entry.title.contains(_searchQuery.value, ignoreCase = true) ||
@@ -80,12 +78,10 @@ class MainViewModel(
             }
         }
 
-        // Фильтр по эмоции
         if (_selectedEmotion.value != null) {
             filtered = filtered.filter { it.emotion == _selectedEmotion.value }
         }
 
-        // Фильтр по типу вложения
         if (_selectedAttachmentType.value != null) {
             filtered = filtered.filter { entry ->
                 when (_selectedAttachmentType.value) {
@@ -132,7 +128,6 @@ class MainViewModel(
         }
     }
 
-    // Полная дата для отображения в карточке
     fun formatFullDate(date: Date): String {
         val now = Calendar.getInstance()
         val target = Calendar.getInstance().apply { time = date }
@@ -155,13 +150,11 @@ class MainViewModel(
         }
     }
 
-    // Функция для получения дня недели
     fun getDayOfWeek(date: Date): String {
         val sdf = SimpleDateFormat("EEEE", Locale("ru"))
         return sdf.format(date)
     }
 
-    // Функция для получения количества активных фильтров
     fun getActiveFiltersCount(): Int {
         var count = 0
         if (_searchQuery.value.isNotEmpty()) count++
@@ -170,7 +163,6 @@ class MainViewModel(
         return count
     }
 
-    // Функция для сброса всех фильтров
     fun clearAllFilters() {
         _searchQuery.value = ""
         _selectedEmotion.value = null
