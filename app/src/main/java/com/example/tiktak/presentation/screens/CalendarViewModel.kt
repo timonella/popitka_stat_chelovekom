@@ -29,21 +29,26 @@ class CalendarViewModel(
         viewModelScope.launch {
             _isLoading.value = true
 
-            val entriesMap = HashMap<String, MutableList<DiaryEntry>>()
+            try {
+                val entriesMap = HashMap<String, MutableList<DiaryEntry>>()
+                val daysInMonth = calendar.getActualMaximum(Calendar.DAY_OF_MONTH)
 
-            // Загружаем записи для каждого дня месяца
-            val daysInMonth = calendar.getActualMaximum(Calendar.DAY_OF_MONTH)
-
-            for (day in 1..daysInMonth) {
-                val date = createDateFromDay(calendar, day)
-                diaryRepository.getEntriesByDate(date).collect { entries ->
+                for (day in 1..daysInMonth) {
+                    val date = createDateFromDay(calendar, day)
                     val dateKey = formatDateForDisplay(date)
-                    entriesMap[dateKey] = entries.toMutableList()
-                }
-            }
 
-            _entriesByDate.value = entriesMap
-            _isLoading.value = false
+                    val entries = diaryRepository.getEntriesByDate(date).first()
+                    if (entries.isNotEmpty()) {
+                        entriesMap[dateKey] = entries.toMutableList()
+                    }
+                }
+
+                _entriesByDate.value = entriesMap
+            } catch (e: Exception) {
+                e.printStackTrace()
+            } finally {
+                _isLoading.value = false
+            }
         }
     }
 
@@ -59,7 +64,6 @@ class CalendarViewModel(
     }
 }
 
-// Вспомогательные функции
 fun createDateFromDay(calendar: Calendar, day: Int): Date {
     val newCalendar = calendar.clone() as Calendar
     newCalendar.set(Calendar.DAY_OF_MONTH, day)
