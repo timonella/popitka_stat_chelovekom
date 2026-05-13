@@ -1,5 +1,8 @@
 package com.example.tiktak.presentation.screens
 
+import android.content.ActivityNotFoundException
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -13,14 +16,18 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.core.content.FileProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import com.example.tiktak.data.database.AppDatabase
 import com.example.tiktak.data.datastore.SettingsDataStore
 import com.example.tiktak.data.repository.AuthRepositoryImpl
+import com.example.tiktak.data.repository.DiaryRepositoryImpl
 import com.example.tiktak.presentation.common.components.*
 import com.example.tiktak.presentation.navigation.Screen
 import com.example.tiktak.presentation.screens.settings.SettingsViewModel
 import com.example.tiktak.presentation.theme.ThemeType
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -30,12 +37,14 @@ fun SettingsScreen(
     val context = LocalContext.current
     val settingsDataStore = remember { SettingsDataStore(context) }
     val authRepository = remember { AuthRepositoryImpl(context) }
+    val database = AppDatabase.getDatabase(context)
+    val diaryRepository = remember { DiaryRepositoryImpl(database.diaryDao()) }
 
     val viewModel: SettingsViewModel = viewModel(
         factory = object : androidx.lifecycle.ViewModelProvider.Factory {
             override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
                 @Suppress("UNCHECKED_CAST")
-                return SettingsViewModel(authRepository, settingsDataStore) as T
+                return SettingsViewModel(authRepository, settingsDataStore, diaryRepository) as T
             }
         }
     )
@@ -43,12 +52,42 @@ fun SettingsScreen(
     val isLoading by viewModel.isLoading.collectAsState()
     val user by viewModel.user.collectAsState()
     val currentTheme by viewModel.currentTheme.collectAsState()
-    val notificationsEnabled by viewModel.notificationsEnabled.collectAsState()
-    val biometricEnabled by viewModel.biometricEnabled.collectAsState()
     val zaNashikhAdsEnabled by viewModel.zaNashikhAdsEnabled.collectAsState()
+    val isExporting by viewModel.isExporting.collectAsState()
+    val exportResult by viewModel.exportResult.collectAsState()
+    val exportError by viewModel.exportError.collectAsState()
 
     var showLogoutDialog by remember { mutableStateOf(false) }
+    var showExportSuccessDialog by remember { mutableStateOf(false) }
+    var showExportErrorDialog by remember { mutableStateOf(false) }
     val isZaNashikh = currentTheme == ThemeType.ZA_NASHIKH
+    val coroutineScope = rememberCoroutineScope()
+
+    // Обработка результата экспорта
+    LaunchedEffect(exportResult) {
+        if (exportResult != null) {
+            showExportSuccessDialog = true
+        }
+    }
+
+    LaunchedEffect(exportError) {
+        if (exportError != null) {
+            showExportErrorDialog = true
+        }
+    }
+
+    fun sharePdf(uri: Uri) {
+        try {
+            val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                type = "application/pdf"
+                putExtra(Intent.EXTRA_STREAM, uri)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            context.startActivity(Intent.createChooser(shareIntent, "Поделиться PDF"))
+        } catch (e: ActivityNotFoundException) {
+            // Обработка ошибки
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -172,57 +211,6 @@ fun SettingsScreen(
                         }
                     }
 
-                    // Уведомления
-                    item {
-                        Card(
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Column {
-                                Text(
-                                    text = "Уведомления",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    modifier = Modifier.padding(16.dp)
-                                )
-
-                                SwitchWithText(
-                                    text = "Включить уведомления",
-                                    isChecked = notificationsEnabled,
-                                    onCheckedChange = { viewModel.updateNotifications(it) },
-                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                                )
-
-                                Text(
-                                    text = "Получать напоминания о ведении дневника",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                                )
-                            }
-                        }
-                    }
-
-                    // Безопасность
-                    item {
-                        Card(
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Column {
-                                Text(
-                                    text = "Безопасность",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    modifier = Modifier.padding(16.dp)
-                                )
-
-                                SwitchWithText(
-                                    text = "Использовать биометрию",
-                                    isChecked = biometricEnabled,
-                                    onCheckedChange = { viewModel.updateBiometric(it) },
-                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                                )
-                            }
-                        }
-                    }
-
                     // Патриотический контент
                     item {
                         Card(
@@ -252,7 +240,7 @@ fun SettingsScreen(
                         }
                     }
 
-                    // Данные
+                    // Данные (экспорт и синхронизация)
                     item {
                         Card(
                             modifier = Modifier.fillMaxWidth()
@@ -264,34 +252,36 @@ fun SettingsScreen(
                                     modifier = Modifier.padding(16.dp)
                                 )
 
+                                // Экспорт в PDF
                                 Button(
-                                    onClick = { /* Экспорт данных */ },
+                                    onClick = {
+                                        coroutineScope.launch {
+                                            viewModel.exportToPdf(context)
+                                        }
+                                    },
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .padding(horizontal = 16.dp, vertical = 4.dp),
                                     colors = ButtonDefaults.buttonColors(
                                         containerColor = MaterialTheme.colorScheme.secondaryContainer
-                                    )
+                                    ),
+                                    enabled = !isExporting
                                 ) {
-                                    Icon(Icons.Default.Download, contentDescription = null)
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text("Экспортировать данные")
+                                    if (isExporting) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(20.dp),
+                                            strokeWidth = 2.dp
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text("Экспорт в PDF...")
+                                    } else {
+                                        Icon(Icons.Default.PictureAsPdf, contentDescription = null)
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text("Экспорт в PDF")
+                                    }
                                 }
 
-                                Button(
-                                    onClick = { /* Импорт данных */ },
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(horizontal = 16.dp, vertical = 4.dp),
-                                    colors = ButtonDefaults.buttonColors(
-                                        containerColor = MaterialTheme.colorScheme.secondaryContainer
-                                    )
-                                ) {
-                                    Icon(Icons.Default.Upload, contentDescription = null)
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text("Импортировать данные")
-                                }
-
+                                // Синхронизация
                                 Button(
                                     onClick = { navController.navigate(Screen.SyncSettings.route) },
                                     modifier = Modifier
@@ -305,33 +295,6 @@ fun SettingsScreen(
                                     Spacer(modifier = Modifier.width(8.dp))
                                     Text("Настройки синхронизации")
                                 }
-                            }
-                        }
-                    }
-
-                    // О приложении
-                    item {
-                        Card(
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Column(
-                                modifier = Modifier.padding(16.dp)
-                            ) {
-                                Text(
-                                    text = "О приложении",
-                                    style = MaterialTheme.typography.titleMedium
-                                )
-                                Spacer(modifier = Modifier.height(8.dp))
-                                Text(
-                                    text = "Дневник Эмоций v1.0.0",
-                                    style = MaterialTheme.typography.bodyMedium
-                                )
-                                Text(
-                                    text = "Ведите дневник, отслеживайте эмоции и улучшайте настроение",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.padding(top = 4.dp)
-                                )
                             }
                         }
                     }
@@ -353,6 +316,61 @@ fun SettingsScreen(
                 }
             }
         }
+    }
+
+    // Диалог успешного экспорта
+    if (showExportSuccessDialog && exportResult != null) {
+        AlertDialog(
+            onDismissRequest = {
+                showExportSuccessDialog = false
+                viewModel.clearExportResult()
+            },
+            title = { Text("Экспорт завершен") },
+            text = { Text("PDF файл успешно создан. Хотите открыть или поделиться?") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        sharePdf(exportResult!!)
+                        showExportSuccessDialog = false
+                        viewModel.clearExportResult()
+                    }
+                ) {
+                    Text("Поделиться")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        showExportSuccessDialog = false
+                        viewModel.clearExportResult()
+                    }
+                ) {
+                    Text("Закрыть")
+                }
+            }
+        )
+    }
+
+    // Диалог ошибки экспорта
+    if (showExportErrorDialog && exportError != null) {
+        AlertDialog(
+            onDismissRequest = {
+                showExportErrorDialog = false
+                viewModel.clearExportResult()
+            },
+            title = { Text("Ошибка экспорта") },
+            text = { Text(exportError ?: "Неизвестная ошибка") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showExportErrorDialog = false
+                        viewModel.clearExportResult()
+                    }
+                ) {
+                    Text("OK")
+                }
+            }
+        )
     }
 
     // Диалог подтверждения выхода

@@ -17,6 +17,8 @@ class SettingsDataStore(private val context: Context) {
         private val NOTIFICATIONS_KEY = stringPreferencesKey("notifications")
         private val BIOMETRIC_KEY = stringPreferencesKey("biometric")
         private val ZA_NASHIKH_ADS_KEY = booleanPreferencesKey("za_nashikh_ads")
+        private val PIN_KEY = stringPreferencesKey("user_pin")
+        private val IS_PIN_SETUP_KEY = stringPreferencesKey("is_pin_setup")
     }
 
     val themeFlow: Flow<ThemeType> = context.dataStore.data.map { preferences ->
@@ -62,6 +64,13 @@ class SettingsDataStore(private val context: Context) {
     suspend fun saveZaNashikhAdsEnabled(enabled: Boolean) {
         context.dataStore.edit { preferences ->
             preferences[ZA_NASHIKH_ADS_KEY] = enabled
+        }
+    }
+
+    suspend fun clearPin() {
+        context.dataStore.edit { preferences ->
+            preferences.remove(PIN_KEY)
+            preferences.remove(IS_PIN_SETUP_KEY)
         }
     }
 }
