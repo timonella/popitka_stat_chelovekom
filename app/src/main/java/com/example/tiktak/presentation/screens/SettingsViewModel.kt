@@ -1,17 +1,23 @@
 package com.example.tiktak.presentation.screens.settings
 
+import android.content.Context
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.tiktak.data.datastore.SettingsDataStore
 import com.example.tiktak.domain.repository.AuthRepository
+import com.example.tiktak.domain.repository.DiaryRepository
 import com.example.tiktak.presentation.theme.ThemeType
+import com.example.tiktak.utils.PdfExportManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 class SettingsViewModel(
     private val authRepository: AuthRepository,
-    private val settingsDataStore: SettingsDataStore
+    private val settingsDataStore: SettingsDataStore,
+    private val diaryRepository: DiaryRepository
 ) : ViewModel() {
 
     private val _isLoading = MutableStateFlow(false)
@@ -20,14 +26,17 @@ class SettingsViewModel(
     private val _currentTheme = MutableStateFlow(ThemeType.SYSTEM)
     val currentTheme = _currentTheme.asStateFlow()
 
-    private val _notificationsEnabled = MutableStateFlow(true)
-    val notificationsEnabled = _notificationsEnabled.asStateFlow()
-
-    private val _biometricEnabled = MutableStateFlow(false)
-    val biometricEnabled = _biometricEnabled.asStateFlow()
-
     private val _zaNashikhAdsEnabled = MutableStateFlow(true)
     val zaNashikhAdsEnabled = _zaNashikhAdsEnabled.asStateFlow()
+
+    private val _isExporting = MutableStateFlow(false)
+    val isExporting = _isExporting.asStateFlow()
+
+    private val _exportResult = MutableStateFlow<Uri?>(null)
+    val exportResult = _exportResult.asStateFlow()
+
+    private val _exportError = MutableStateFlow<String?>(null)
+    val exportError = _exportError.asStateFlow()
 
     private val _user = MutableStateFlow(authRepository.getCurrentUser())
     val user = _user.asStateFlow()
@@ -44,18 +53,6 @@ class SettingsViewModel(
         }
 
         viewModelScope.launch {
-            settingsDataStore.notificationsFlow.collect { enabled ->
-                _notificationsEnabled.value = enabled
-            }
-        }
-
-        viewModelScope.launch {
-            settingsDataStore.biometricFlow.collect { enabled ->
-                _biometricEnabled.value = enabled
-            }
-        }
-
-        viewModelScope.launch {
             settingsDataStore.zaNashikhAdsEnabledFlow.collect { enabled ->
                 _zaNashikhAdsEnabled.value = enabled
             }
@@ -68,20 +65,6 @@ class SettingsViewModel(
         }
     }
 
-    fun updateNotifications(enabled: Boolean) {
-        _notificationsEnabled.value = enabled
-        viewModelScope.launch {
-            settingsDataStore.saveNotifications(enabled)
-        }
-    }
-
-    fun updateBiometric(enabled: Boolean) {
-        _biometricEnabled.value = enabled
-        viewModelScope.launch {
-            settingsDataStore.saveBiometric(enabled)
-        }
-    }
-
     fun updateZaNashikhAdsEnabled(enabled: Boolean) {
         _zaNashikhAdsEnabled.value = enabled
         viewModelScope.launch {
@@ -89,15 +72,51 @@ class SettingsViewModel(
         }
     }
 
+    suspend fun exportToPdf(context: Context): Result<Uri> {
+        _isExporting.value = true
+        _exportError.value = null
+
+        val result = try {
+            // Получаем все записи - используем first() на Flow
+            val entriesFlow = diaryRepository.getAllEntries()
+            val entries = entriesFlow.first()
+
+            if (entries.isEmpty()) {
+                return Result.failure(Exception("Нет записей для экспорта"))
+            }
+
+            val pdfManager = PdfExportManager(context)
+            pdfManager.exportEntriesToPdf(entries)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+
+        _isExporting.value = false
+
+        if (result.isSuccess) {
+            _exportResult.value = result.getOrNull()
+        } else {
+            _exportError.value = result.exceptionOrNull()?.message ?: "Ошибка экспорта"
+        }
+
+        return result
+    }
+
+    fun clearExportResult() {
+        _exportResult.value = null
+        _exportError.value = null
+    }
+
     fun logout(onSuccess: () -> Unit) {
         viewModelScope.launch {
             _isLoading.value = true
             val result = authRepository.logout()
-            _isLoading.value = false
-
             if (result.isSuccess) {
+                // Очищаем PIN-код при выходе
+                settingsDataStore.clearPin()
                 onSuccess()
             }
+            _isLoading.value = false
         }
     }
 }
