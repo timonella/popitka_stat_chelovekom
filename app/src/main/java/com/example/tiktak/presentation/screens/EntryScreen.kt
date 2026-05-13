@@ -66,7 +66,6 @@ fun EntryScreen(
     val coroutineScope = rememberCoroutineScope()
 
 
-    // Проверка разрешений
     val hasRecordAudioPermission = ContextCompat.checkSelfPermission(
         context, Manifest.permission.RECORD_AUDIO
     ) == PackageManager.PERMISSION_GRANTED
@@ -82,7 +81,6 @@ fun EntryScreen(
         ContextCompat.checkSelfPermission(context, Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED
     }
 
-    // Лаунчеры для разрешений
     val recordAudioPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { isGranted ->
@@ -99,8 +97,6 @@ fun EntryScreen(
         }
     }
 
-    // Лаунчер для камеры (фото)
-    // Лаунчер для камеры (фото)
     val takePhotoLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.TakePicture()
     ) { success ->
@@ -115,7 +111,6 @@ fun EntryScreen(
         }
     }
 
-// Лаунчер для камеры (видео)
     val takeVideoLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.CaptureVideo()
     ) { success ->
@@ -130,17 +125,14 @@ fun EntryScreen(
         }
     }
 
-    // Лаунчер для галереи (изображения)
     val imagePickerLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
         uri?.let {
-            // Сохраняем URI как строку
             viewModel.addImage(it.toString())
         }
     }
 
-    // Лаунчер для видео из галереи
     val videoPickerLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
@@ -149,7 +141,6 @@ fun EntryScreen(
         }
     }
 
-    // Лаунчер для файлов (документы)
     val documentPickerLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
@@ -173,7 +164,6 @@ fun EntryScreen(
         }
     }
 
-    // Функции для работы с аудио
     fun startRecording() {
         if (!hasRecordAudioPermission) {
             recordAudioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
@@ -194,7 +184,6 @@ fun EntryScreen(
         }
     }
 
-    // Функция для проверки и запроса разрешений на хранилище
     fun checkAndRequestStoragePermission(action: () -> Unit) {
         val missingPermissions = mutableListOf<String>()
 
@@ -218,7 +207,6 @@ fun EntryScreen(
         }
     }
 
-    // Функция для съемки фото
     fun takePhoto() {
         if (!hasCameraPermission) {
             cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
@@ -234,7 +222,6 @@ fun EntryScreen(
         takePhotoLauncher.launch(uri)
     }
 
-    // Функция для записи видео
     fun takeVideo() {
         if (!hasCameraPermission) {
             cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
@@ -250,14 +237,12 @@ fun EntryScreen(
         takeVideoLauncher.launch(uri)
     }
 
-    // Функция для выбора изображений из галереи
     fun pickImageFromGallery() {
         checkAndRequestStoragePermission {
             imagePickerLauncher.launch("image/*")
         }
     }
 
-    // Функция для выбора видео из галереи
     fun pickVideoFromGallery() {
         checkAndRequestStoragePermission {
             videoPickerLauncher.launch("video/*")
@@ -455,7 +440,6 @@ fun EntryScreen(
                         )
                         Spacer(modifier = Modifier.height(8.dp))
 
-                        // Кнопка записи
                         Box(
                             modifier = Modifier.fillMaxWidth(),
                             contentAlignment = Alignment.Center
@@ -509,7 +493,6 @@ fun EntryScreen(
                     }
                 }
 
-                // Список аудиозаписей с плеером
                 if (audioFiles.isNotEmpty()) {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
@@ -599,7 +582,6 @@ fun EntryScreen(
                     }
                 }
 
-                // Кнопка добавления медиа
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(
@@ -669,7 +651,6 @@ fun EntryScreen(
         }
     }
 
-    // Диалог выбора типа медиа для камеры
     if (showMediaDialog) {
         AlertDialog(
             onDismissRequest = { showMediaDialog = false },
