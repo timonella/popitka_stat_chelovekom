@@ -1,19 +1,26 @@
 package com.example.tiktak.presentation.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import com.example.tiktak.domain.repository.DiaryRepository
+import com.example.tiktak.data.database.AppDatabase
+import com.example.tiktak.data.repository.DiaryRepositoryImpl
 import com.example.tiktak.presentation.screens.*
 
 @Composable
-fun NavGraph(
-    diaryRepository: DiaryRepository  // Добавьте параметр
-) {
+fun NavGraph() {
     val navController = rememberNavController()
+    val context = LocalContext.current
+
+    val diaryRepository = remember {
+        val database = AppDatabase.getDatabase(context)
+        DiaryRepositoryImpl(database.diaryDao())
+    }
 
     NavHost(
         navController = navController,
@@ -36,27 +43,35 @@ fun NavGraph(
         }
 
         composable(
-            route = "entry/{entryId}",
+            route = Screen.Entry.route,
             arguments = listOf(navArgument("entryId") { type = NavType.StringType })
         ) { backStackEntry ->
             val entryId = backStackEntry.arguments?.getString("entryId") ?: "new"
             EntryScreen(navController = navController, entryId = entryId)
         }
 
-        composable("calendar") {
+        composable(Screen.Calendar.route) {
             CalendarScreen(navController = navController)
         }
 
-        composable("statistics") {
-            // Передайте репозиторий в StatisticsScreen
+        composable(Screen.Statistics.route) {
             StatisticsScreen(
                 navController = navController,
                 diaryRepository = diaryRepository
             )
         }
 
-        composable("settings") {
+        composable(Screen.Settings.route) {
             SettingsScreen(navController = navController)
+        }
+
+        // Дополнительные экраны для статистики
+        composable(Screen.StatisticsDetail.route) {
+            // StatisticsDetailScreen(navController = navController)
+        }
+
+        composable(Screen.StatisticsExport.route) {
+            // StatisticsExportScreen(navController = navController)
         }
     }
 }

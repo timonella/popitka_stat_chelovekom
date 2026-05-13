@@ -3,34 +3,30 @@ package com.example.tiktak
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import com.example.tiktak.di.AppModule
+import androidx.compose.runtime.*
+import com.example.tiktak.data.datastore.SettingsDataStore
 import com.example.tiktak.presentation.navigation.NavGraph
 import com.example.tiktak.presentation.theme.DiaryTheme
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.ui.Modifier
+import com.example.tiktak.presentation.theme.ThemeType
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
 
 class MainActivity : ComponentActivity() {
 
-    private val diaryRepository by lazy {
-        (application as MyApplication).diaryRepository
-    }
-
+    private lateinit var settingsDataStore: SettingsDataStore
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        AppModule.initialize(applicationContext)
+
+        settingsDataStore = SettingsDataStore(this)
 
         setContent {
-            DiaryTheme {
-                Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background
-                ) {
-                    // Передаем репозиторий в NavGraph
-                    NavGraph(diaryRepository = diaryRepository)
-                }
+            val currentTheme by settingsDataStore.themeFlow.collectAsState(initial = ThemeType.SYSTEM)
+
+            DiaryTheme(
+                themeType = currentTheme
+            ) {
+                NavGraph()
             }
         }
     }

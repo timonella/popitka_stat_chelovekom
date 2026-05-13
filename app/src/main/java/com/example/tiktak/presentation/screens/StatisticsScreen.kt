@@ -38,12 +38,11 @@ import java.util.*
 @Composable
 fun StatisticsScreen(
     navController: NavController,
-    diaryRepository: DiaryRepository  // Добавьте параметр репозитория
+    diaryRepository: DiaryRepository
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
 
-    // Создаем ViewModel с фабрикой
     val viewModel: StatisticsViewModel = viewModel(
         factory = StatisticsViewModelFactory(diaryRepository)
     )
@@ -130,7 +129,6 @@ fun StatisticsScreen(
     }
 }
 
-// Фабрика для StatisticsViewModel
 class StatisticsViewModelFactory(
     private val diaryRepository: DiaryRepository
 ) : androidx.lifecycle.ViewModelProvider.Factory {
@@ -317,10 +315,12 @@ fun EmotionsPieChartCard(
                             transparentCircleRadius = 61f
                             setDrawCenterText(true)
                             rotationAngle = 0f
-                            isRotationEnabled = true
+                            isRotationEnabled = false  // ОТКЛЮЧАЕМ РУЧНОЕ ВРАЩЕНИЕ
                             isHighlightPerTapEnabled = true
+                            setTouchEnabled(false)  // ОТКЛЮЧАЕМ ВСЕ КАСАНИЯ (увеличение и прокрутку)
 
-                            animateY(1400)
+                            // Анимация - оставляем
+                            animateY(1400)  // Анимация появления
 
                             val entries = mutableListOf<PieEntry>()
                             val colorsList = mutableListOf<Int>()
@@ -388,7 +388,6 @@ fun EmotionsPieChartCard(
         }
     }
 }
-
 @Composable
 fun DetailedStatsCard(statisticsData: StatisticsData) {
     Card(

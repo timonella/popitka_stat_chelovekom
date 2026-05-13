@@ -7,10 +7,12 @@ import android.os.Build
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -19,6 +21,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
@@ -30,10 +33,9 @@ import coil.compose.AsyncImage
 import com.example.tiktak.domain.model.Emotion
 import com.example.tiktak.presentation.common.components.EmotionSelector
 import com.example.tiktak.presentation.common.components.LoadingSpinner
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.io.File
-import java.text.SimpleDateFormat
-import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -56,13 +58,19 @@ fun EntryScreen(
     val videos by viewModel.videos.collectAsState()
     val audioFiles by viewModel.audioFiles.collectAsState()
     val documents by viewModel.documents.collectAsState()
+    val isRecording by viewModel.isRecording.collectAsState()
+    val recordingDuration by viewModel.recordingDuration.collectAsState()
 
     val scrollState = rememberScrollState()
     val coroutineScope = rememberCoroutineScope()
 
-    var currentPhotoPath by remember { mutableStateOf<String?>(null) }
+    var showMediaDialog by remember { mutableStateOf(false) }
 
     // Проверка разрешений
+    val hasRecordAudioPermission = ContextCompat.checkSelfPermission(
+        context, Manifest.permission.RECORD_AUDIO
+    ) == PackageManager.PERMISSION_GRANTED
+
     val hasCameraPermission = ContextCompat.checkSelfPermission(
         context, Manifest.permission.CAMERA
     ) == PackageManager.PERMISSION_GRANTED
@@ -74,6 +82,14 @@ fun EntryScreen(
     }
 
     // Лаунчеры для разрешений
+    val recordAudioPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (!isGranted) {
+            Toast.makeText(context, "Нужно разрешение для записи аудио", Toast.LENGTH_SHORT).show()
+        }
+    }
+
     val cameraPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { isGranted ->
@@ -90,27 +106,7 @@ fun EntryScreen(
         }
     }
 
-    // Лаунчер для камеры (фото)
-    val cameraLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.TakePicture()
-    ) { success ->
-        if (success && currentPhotoPath != null) {
-            viewModel.addImage(currentPhotoPath!!)
-            currentPhotoPath = null
-        }
-    }
-
-    // Лаунчер для выбора видео с камеры
-    val videoCaptureLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.CaptureVideo()
-    ) { success ->
-        if (success && currentPhotoPath != null) {
-            viewModel.addVideo(currentPhotoPath!!)
-            currentPhotoPath = null
-        }
-    }
-
-    // Лаунчеры для выбора файлов из галереи
+    // Лаунчеры для выбора файлов
     val imagePickerLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
@@ -127,14 +123,6 @@ fun EntryScreen(
         }
     }
 
-    val audioPickerLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.GetContent()
-    ) { uri: Uri? ->
-        uri?.let {
-            viewModel.addAudio(it.toString())
-        }
-    }
-
     val documentPickerLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
@@ -143,67 +131,24 @@ fun EntryScreen(
         }
     }
 
-    // Создание временного файла для фото/видео
-    fun createTempFile(type: String): File? {
-        val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
-        val storageDir = context.getExternalFilesDir(null)
-        return try {
-            File.createTempFile(
-                "JPEG_${timeStamp}_",
-                if (type == "image") ".jpg" else ".mp4",
-                storageDir
-            ).apply {
-                currentPhotoPath = absolutePath
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-            null
+    // Функции для работы с аудио
+    fun startRecording() {
+        if (!hasRecordAudioPermission) {
+            recordAudioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+        } else {
+            viewModel.startRecording(context)
         }
     }
 
-    fun takePhoto() {
-        if (!hasCameraPermission) {
-            cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
-        } else {
-            try {
-                val file = createTempFile("image")
-                file?.let {
-                    val photoUri = FileProvider.getUriForFile(
-                        context,
-                        "${context.packageName}.fileprovider", // Убедитесь, что это совпадает с authorities в манифесте
-                        it
-                    )
-                    cameraLauncher.launch(photoUri)
-                } ?: run {
-                    Toast.makeText(context, "Не удалось создать файл", Toast.LENGTH_SHORT).show()
-                }
-            } catch (e: Exception) {
-                e.printStackTrace()
-                Toast.makeText(context, "Ошибка: ${e.message}", Toast.LENGTH_LONG).show()
-            }
-        }
+    fun stopRecording() {
+        viewModel.stopRecording()
     }
 
-    fun takeVideo() {
-        if (!hasCameraPermission) {
-            cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+    fun toggleRecording() {
+        if (isRecording) {
+            stopRecording()
         } else {
-            try {
-                val file = createTempFile("video")
-                file?.let {
-                    val videoUri = FileProvider.getUriForFile(
-                        context,
-                        "${context.packageName}.fileprovider", // Исправил здесь
-                        it
-                    )
-                    videoCaptureLauncher.launch(videoUri)
-                } ?: run {
-                    Toast.makeText(context, "Не удалось создать файл", Toast.LENGTH_SHORT).show()
-                }
-            } catch (e: Exception) {
-                e.printStackTrace()
-                Toast.makeText(context, "Ошибка: ${e.message}", Toast.LENGTH_LONG).show()
-            }
+            startRecording()
         }
     }
 
@@ -393,7 +338,76 @@ fun EntryScreen(
                     }
                 }
 
-                // Аудио
+                // Аудио записи (диктофон)
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant
+                    )
+                ) {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Text(
+                            text = "🎙️ Диктофон",
+                            style = MaterialTheme.typography.titleMedium
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        // Кнопка записи
+                        Box(
+                            modifier = Modifier.fillMaxWidth(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                // Анимированная кнопка записи
+                                var scale by remember { mutableStateOf(1f) }
+
+                                LaunchedEffect(isRecording) {
+                                    while (isRecording) {
+                                        scale = if (scale == 1f) 1.2f else 1f
+                                        delay(500)
+                                    }
+                                    scale = 1f
+                                }
+
+                                FloatingActionButton(
+                                    onClick = { toggleRecording() },
+                                    containerColor = if (isRecording)
+                                        MaterialTheme.colorScheme.error
+                                    else
+                                        MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(80.dp)
+                                ) {
+                                    Icon(
+                                        if (isRecording) Icons.Default.Stop else Icons.Default.Mic,
+                                        contentDescription = if (isRecording) "Остановить" else "Запись",
+                                        modifier = Modifier.size(40.dp),
+                                        tint = Color.White
+                                    )
+                                }
+
+                                Spacer(modifier = Modifier.height(8.dp))
+
+                                if (isRecording) {
+                                    Text(
+                                        text = "Запись... ${viewModel.formatDuration(recordingDuration)}",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.error
+                                    )
+                                } else {
+                                    Text(
+                                        text = "Нажмите для записи аудио",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Список аудиозаписей
                 if (audioFiles.isNotEmpty()) {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
@@ -403,10 +417,11 @@ fun EntryScreen(
                     ) {
                         Column(modifier = Modifier.padding(12.dp)) {
                             Text(
-                                text = "🎵 Аудиозаписи",
+                                text = "🎵 Сохраненные аудиозаписи",
                                 style = MaterialTheme.typography.titleSmall
                             )
                             Spacer(modifier = Modifier.height(8.dp))
+
                             audioFiles.forEach { audioPath ->
                                 Card(
                                     modifier = Modifier.fillMaxWidth(),
@@ -434,72 +449,13 @@ fun EntryScreen(
                                             Text(
                                                 text = audioPath.substringAfterLast("/"),
                                                 maxLines = 1,
-                                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                                                modifier = Modifier.weight(1f)
                                             )
                                         }
                                         IconButton(onClick = { viewModel.removeAudio(audioPath) }) {
                                             Icon(
-                                                Icons.Default.Close,
-                                                contentDescription = "Удалить",
-                                                modifier = Modifier.size(20.dp),
-                                                tint = MaterialTheme.colorScheme.error
-                                            )
-                                        }
-                                    }
-                                }
-                                Spacer(modifier = Modifier.height(4.dp))
-                            }
-                        }
-                    }
-                }
-
-                // Документы
-                if (documents.isNotEmpty()) {
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant
-                        )
-                    ) {
-                        Column(modifier = Modifier.padding(12.dp)) {
-                            Text(
-                                text = "📄 Документы",
-                                style = MaterialTheme.typography.titleSmall
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            documents.forEach { documentPath ->
-                                Card(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    colors = CardDefaults.cardColors(
-                                        containerColor = MaterialTheme.colorScheme.surface
-                                    )
-                                ) {
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(8.dp),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            modifier = Modifier.weight(1f)
-                                        ) {
-                                            Icon(
-                                                Icons.Default.Description,
-                                                contentDescription = "Документ",
-                                                tint = MaterialTheme.colorScheme.primary
-                                            )
-                                            Spacer(modifier = Modifier.width(8.dp))
-                                            Text(
-                                                text = documentPath.substringAfterLast("/"),
-                                                maxLines = 1,
-                                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
-                                            )
-                                        }
-                                        IconButton(onClick = { viewModel.removeDocument(documentPath) }) {
-                                            Icon(
-                                                Icons.Default.Close,
+                                                Icons.Default.Delete,
                                                 contentDescription = "Удалить",
                                                 modifier = Modifier.size(20.dp),
                                                 tint = MaterialTheme.colorScheme.error
@@ -532,35 +488,10 @@ fun EntryScreen(
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             OutlinedButton(
-                                onClick = { takePhoto() },
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                Icon(Icons.Default.CameraAlt, contentDescription = "Снять фото")
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text("Снять")
-                            }
-
-                            OutlinedButton(
-                                onClick = { takeVideo() },
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                Icon(Icons.Default.Videocam, contentDescription = "Записать видео")
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text("Записать")
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            OutlinedButton(
                                 onClick = { checkAndRequestStoragePermission { imagePickerLauncher.launch("image/*") } },
                                 modifier = Modifier.weight(1f)
                             ) {
-                                Icon(Icons.Default.Image, contentDescription = "Выбрать фото")
+                                Icon(Icons.Default.Image, contentDescription = "Фото")
                                 Spacer(modifier = Modifier.width(4.dp))
                                 Text("Фото")
                             }
@@ -569,7 +500,7 @@ fun EntryScreen(
                                 onClick = { checkAndRequestStoragePermission { videoPickerLauncher.launch("video/*") } },
                                 modifier = Modifier.weight(1f)
                             ) {
-                                Icon(Icons.Default.Videocam, contentDescription = "Выбрать видео")
+                                Icon(Icons.Default.Videocam, contentDescription = "Видео")
                                 Spacer(modifier = Modifier.width(4.dp))
                                 Text("Видео")
                             }
@@ -582,21 +513,20 @@ fun EntryScreen(
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             OutlinedButton(
-                                onClick = { audioPickerLauncher.launch("audio/*") },
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                Icon(Icons.Default.Audiotrack, contentDescription = "Аудио")
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text("Аудио")
-                            }
-
-                            OutlinedButton(
                                 onClick = { documentPickerLauncher.launch("*/*") },
                                 modifier = Modifier.weight(1f)
                             ) {
                                 Icon(Icons.Default.Description, contentDescription = "Файл")
                                 Spacer(modifier = Modifier.width(4.dp))
                                 Text("Файл")
+                            }
+
+                            OutlinedButton(
+                                onClick = { /* Пустая кнопка для баланса */ },
+                                modifier = Modifier.weight(1f),
+                                enabled = false
+                            ) {
+                                Spacer(modifier = Modifier.width(4.dp))
                             }
                         }
                     }

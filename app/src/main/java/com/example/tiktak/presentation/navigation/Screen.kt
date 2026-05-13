@@ -12,7 +12,7 @@ sealed class Screen(val route: String) {
     object Statistics : Screen("statistics")
     object Settings : Screen("settings")
 
-    // Добавленные экраны для статистики
+    // Дополнительные экраны для статистики (если нужны)
     object StatisticsDetail : Screen("statistics_detail")
     object StatisticsExport : Screen("statistics_export")
 }
