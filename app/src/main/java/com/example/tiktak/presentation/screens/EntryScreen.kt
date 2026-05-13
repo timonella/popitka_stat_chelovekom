@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
+import android.provider.MediaStore
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -60,11 +61,10 @@ fun EntryScreen(
     val documents by viewModel.documents.collectAsState()
     val isRecording by viewModel.isRecording.collectAsState()
     val recordingDuration by viewModel.recordingDuration.collectAsState()
-
+    var showMediaDialog by remember { mutableStateOf(false) }
     val scrollState = rememberScrollState()
     val coroutineScope = rememberCoroutineScope()
 
-    var showMediaDialog by remember { mutableStateOf(false) }
 
     // Проверка разрешений
     val hasRecordAudioPermission = ContextCompat.checkSelfPermission(
@@ -76,7 +76,8 @@ fun EntryScreen(
     ) == PackageManager.PERMISSION_GRANTED
 
     val hasStoragePermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-        ContextCompat.checkSelfPermission(context, Manifest.permission.READ_MEDIA_IMAGES) == PackageManager.PERMISSION_GRANTED
+        ContextCompat.checkSelfPermission(context, Manifest.permission.READ_MEDIA_IMAGES) == PackageManager.PERMISSION_GRANTED &&
+                ContextCompat.checkSelfPermission(context, Manifest.permission.READ_MEDIA_VIDEO) == PackageManager.PERMISSION_GRANTED
     } else {
         ContextCompat.checkSelfPermission(context, Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED
     }
@@ -98,23 +99,48 @@ fun EntryScreen(
         }
     }
 
-    val storagePermissionLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { isGranted ->
-        if (!isGranted) {
-            Toast.makeText(context, "Нужно разрешение для доступа к файлам", Toast.LENGTH_SHORT).show()
+    // Лаунчер для камеры (фото)
+    // Лаунчер для камеры (фото)
+    val takePhotoLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.TakePicture()
+    ) { success ->
+        if (success) {
+            viewModel.getTempPhotoPath()?.let { photoPath ->
+                viewModel.addPhotoFromCamera(photoPath)
+                viewModel.clearTempPhotoPath()
+            }
+        } else {
+            Toast.makeText(context, "Не удалось сделать фото", Toast.LENGTH_SHORT).show()
+            viewModel.clearTempPhotoPath()
         }
     }
 
-    // Лаунчеры для выбора файлов
+// Лаунчер для камеры (видео)
+    val takeVideoLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CaptureVideo()
+    ) { success ->
+        if (success) {
+            viewModel.getTempVideoPath()?.let { videoPath ->
+                viewModel.addVideoFromCamera(videoPath)
+                viewModel.clearTempVideoPath()
+            }
+        } else {
+            Toast.makeText(context, "Не удалось записать видео", Toast.LENGTH_SHORT).show()
+            viewModel.clearTempVideoPath()
+        }
+    }
+
+    // Лаунчер для галереи (изображения)
     val imagePickerLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
         uri?.let {
+            // Сохраняем URI как строку
             viewModel.addImage(it.toString())
         }
     }
 
+    // Лаунчер для видео из галереи
     val videoPickerLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
@@ -123,11 +149,27 @@ fun EntryScreen(
         }
     }
 
+    // Лаунчер для файлов (документы)
     val documentPickerLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
         uri?.let {
             viewModel.addDocument(it.toString())
+        }
+    }
+
+    val storagePermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        val allGranted = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            permissions[Manifest.permission.READ_MEDIA_IMAGES] == true &&
+                    permissions[Manifest.permission.READ_MEDIA_VIDEO] == true
+        } else {
+            permissions[Manifest.permission.READ_EXTERNAL_STORAGE] == true
+        }
+
+        if (!allGranted) {
+            Toast.makeText(context, "Нужно разрешение для доступа к файлам", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -152,19 +194,73 @@ fun EntryScreen(
         }
     }
 
+    // Функция для проверки и запроса разрешений на хранилище
     fun checkAndRequestStoragePermission(action: () -> Unit) {
+        val missingPermissions = mutableListOf<String>()
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (hasStoragePermission) {
-                action()
-            } else {
-                storagePermissionLauncher.launch(Manifest.permission.READ_MEDIA_IMAGES)
+            if (ContextCompat.checkSelfPermission(context, Manifest.permission.READ_MEDIA_IMAGES) != PackageManager.PERMISSION_GRANTED) {
+                missingPermissions.add(Manifest.permission.READ_MEDIA_IMAGES)
+            }
+            if (ContextCompat.checkSelfPermission(context, Manifest.permission.READ_MEDIA_VIDEO) != PackageManager.PERMISSION_GRANTED) {
+                missingPermissions.add(Manifest.permission.READ_MEDIA_VIDEO)
             }
         } else {
-            if (hasStoragePermission) {
-                action()
-            } else {
-                storagePermissionLauncher.launch(Manifest.permission.READ_EXTERNAL_STORAGE)
+            if (ContextCompat.checkSelfPermission(context, Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+                missingPermissions.add(Manifest.permission.READ_EXTERNAL_STORAGE)
             }
+        }
+
+        if (missingPermissions.isEmpty()) {
+            action()
+        } else {
+            storagePermissionLauncher.launch(missingPermissions.toTypedArray())
+        }
+    }
+
+    // Функция для съемки фото
+    fun takePhoto() {
+        if (!hasCameraPermission) {
+            cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+            return
+        }
+
+        val photoFile = viewModel.createImageFile(context)
+        val uri = FileProvider.getUriForFile(
+            context,
+            "${context.packageName}.fileprovider",
+            photoFile
+        )
+        takePhotoLauncher.launch(uri)
+    }
+
+    // Функция для записи видео
+    fun takeVideo() {
+        if (!hasCameraPermission) {
+            cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+            return
+        }
+
+        val videoFile = viewModel.createVideoFile(context)
+        val uri = FileProvider.getUriForFile(
+            context,
+            "${context.packageName}.fileprovider",
+            videoFile
+        )
+        takeVideoLauncher.launch(uri)
+    }
+
+    // Функция для выбора изображений из галереи
+    fun pickImageFromGallery() {
+        checkAndRequestStoragePermission {
+            imagePickerLauncher.launch("image/*")
+        }
+    }
+
+    // Функция для выбора видео из галереи
+    fun pickVideoFromGallery() {
+        checkAndRequestStoragePermission {
+            videoPickerLauncher.launch("video/*")
         }
     }
 
@@ -254,8 +350,15 @@ fun EntryScreen(
                                     Box(
                                         modifier = Modifier.size(100.dp)
                                     ) {
+                                        // Пытаемся загрузить изображение по URI или пути к файлу
+                                        val model = if (imagePath.startsWith("content://")) {
+                                            Uri.parse(imagePath)
+                                        } else {
+                                            File(imagePath)
+                                        }
+
                                         AsyncImage(
-                                            model = File(imagePath),
+                                            model = model,
                                             contentDescription = "Фото",
                                             modifier = Modifier.fillMaxSize(),
                                             contentScale = ContentScale.Crop
@@ -360,7 +463,6 @@ fun EntryScreen(
                             Column(
                                 horizontalAlignment = Alignment.CenterHorizontally
                             ) {
-                                // Анимированная кнопка записи
                                 var scale by remember { mutableStateOf(1f) }
 
                                 LaunchedEffect(isRecording) {
@@ -407,7 +509,7 @@ fun EntryScreen(
                     }
                 }
 
-                // Список аудиозаписей
+                // Список аудиозаписей с плеером
                 if (audioFiles.isNotEmpty()) {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
@@ -423,43 +525,71 @@ fun EntryScreen(
                             Spacer(modifier = Modifier.height(8.dp))
 
                             audioFiles.forEach { audioPath ->
+                                val isThisPlaying by remember {
+                                    derivedStateOf { viewModel.isPlaying.value == audioPath }
+                                }
+                                val playbackProgress by viewModel.playbackProgress.collectAsState()
+
                                 Card(
                                     modifier = Modifier.fillMaxWidth(),
                                     colors = CardDefaults.cardColors(
                                         containerColor = MaterialTheme.colorScheme.surface
                                     )
                                 ) {
-                                    Row(
+                                    Column(
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .padding(8.dp),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
+                                            .padding(12.dp)
                                     ) {
                                         Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            modifier = Modifier.weight(1f)
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
                                         ) {
-                                            Icon(
-                                                Icons.Default.Audiotrack,
-                                                contentDescription = "Аудио",
-                                                tint = MaterialTheme.colorScheme.primary
-                                            )
-                                            Spacer(modifier = Modifier.width(8.dp))
-                                            Text(
-                                                text = audioPath.substringAfterLast("/"),
-                                                maxLines = 1,
-                                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
                                                 modifier = Modifier.weight(1f)
-                                            )
-                                        }
-                                        IconButton(onClick = { viewModel.removeAudio(audioPath) }) {
-                                            Icon(
-                                                Icons.Default.Delete,
-                                                contentDescription = "Удалить",
-                                                modifier = Modifier.size(20.dp),
-                                                tint = MaterialTheme.colorScheme.error
-                                            )
+                                            ) {
+                                                IconButton(
+                                                    onClick = { viewModel.togglePlayback(audioPath) }
+                                                ) {
+                                                    Icon(
+                                                        if (isThisPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                                                        contentDescription = if (isThisPlaying) "Пауза" else "Воспроизвести",
+                                                        tint = MaterialTheme.colorScheme.primary
+                                                    )
+                                                }
+
+                                                Spacer(modifier = Modifier.width(8.dp))
+
+                                                Column(modifier = Modifier.weight(1f)) {
+                                                    Text(
+                                                        text = audioPath.substringAfterLast("/"),
+                                                        maxLines = 1,
+                                                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                                                        style = MaterialTheme.typography.bodyMedium
+                                                    )
+
+                                                    if (isThisPlaying) {
+                                                        Spacer(modifier = Modifier.height(4.dp))
+                                                        LinearProgressIndicator(
+                                                            progress = playbackProgress,
+                                                            modifier = Modifier.fillMaxWidth(),
+                                                            color = MaterialTheme.colorScheme.primary,
+                                                            trackColor = MaterialTheme.colorScheme.surfaceVariant
+                                                        )
+                                                    }
+                                                }
+                                            }
+
+                                            IconButton(onClick = { viewModel.removeAudio(audioPath) }) {
+                                                Icon(
+                                                    Icons.Default.Delete,
+                                                    contentDescription = "Удалить",
+                                                    modifier = Modifier.size(20.dp),
+                                                    tint = MaterialTheme.colorScheme.error
+                                                )
+                                            }
                                         }
                                     }
                                 }
@@ -488,21 +618,24 @@ fun EntryScreen(
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             OutlinedButton(
-                                onClick = { checkAndRequestStoragePermission { imagePickerLauncher.launch("image/*") } },
+                                onClick = { pickImageFromGallery() },
                                 modifier = Modifier.weight(1f)
                             ) {
-                                Icon(Icons.Default.Image, contentDescription = "Фото")
+                                Icon(Icons.Default.Image, contentDescription = "Галерея")
                                 Spacer(modifier = Modifier.width(4.dp))
-                                Text("Фото")
+                                Text("Галерея")
                             }
 
                             OutlinedButton(
-                                onClick = { checkAndRequestStoragePermission { videoPickerLauncher.launch("video/*") } },
+                                onClick = {
+                                    // Показываем диалог выбора: фото или видео
+                                    showMediaDialog = true
+                                },
                                 modifier = Modifier.weight(1f)
                             ) {
-                                Icon(Icons.Default.Videocam, contentDescription = "Видео")
+                                Icon(Icons.Default.Videocam, contentDescription = "Камера")
                                 Spacer(modifier = Modifier.width(4.dp))
-                                Text("Видео")
+                                Text("Камера")
                             }
                         }
 
@@ -516,22 +649,64 @@ fun EntryScreen(
                                 onClick = { documentPickerLauncher.launch("*/*") },
                                 modifier = Modifier.weight(1f)
                             ) {
-                                Icon(Icons.Default.Description, contentDescription = "Файл")
+                                Icon(Icons.Default.Description, contentDescription = "Файлы")
                                 Spacer(modifier = Modifier.width(4.dp))
-                                Text("Файл")
+                                Text("Файлы")
                             }
 
                             OutlinedButton(
-                                onClick = { /* Пустая кнопка для баланса */ },
-                                modifier = Modifier.weight(1f),
-                                enabled = false
+                                onClick = { pickVideoFromGallery() },
+                                modifier = Modifier.weight(1f)
                             ) {
+                                Icon(Icons.Default.VideoLibrary, contentDescription = "Видео")
                                 Spacer(modifier = Modifier.width(4.dp))
+                                Text("Видео")
                             }
                         }
                     }
                 }
             }
         }
+    }
+
+    // Диалог выбора типа медиа для камеры
+    if (showMediaDialog) {
+        AlertDialog(
+            onDismissRequest = { showMediaDialog = false },
+            title = { Text("Выберите действие") },
+            text = { Text("Что вы хотите сделать?") },
+            confirmButton = {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly
+                ) {
+                    TextButton(
+                        onClick = {
+                            showMediaDialog = false
+                            takePhoto()
+                        }
+                    ) {
+                        Icon(Icons.Default.PhotoCamera, contentDescription = null)
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Фото")
+                    }
+                    TextButton(
+                        onClick = {
+                            showMediaDialog = false
+                            takeVideo()
+                        }
+                    ) {
+                        Icon(Icons.Default.Videocam, contentDescription = null)
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Видео")
+                    }
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showMediaDialog = false }) {
+                    Text("Отмена")
+                }
+            }
+        )
     }
 }

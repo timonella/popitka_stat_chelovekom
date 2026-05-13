@@ -11,6 +11,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.tiktak.domain.model.DiaryEntry
 import com.example.tiktak.domain.model.Emotion
 import com.example.tiktak.domain.repository.DiaryRepository
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
@@ -64,6 +65,19 @@ class EntryViewModel(
     private var currentAudioPath: String? = null
     private var recordingStartTime: Long = 0
     private var recordingTimerJob: kotlinx.coroutines.Job? = null
+
+    private val _isPlaying = MutableStateFlow<String?>(null)
+    val isPlaying = _isPlaying.asStateFlow()
+
+    private val _playbackProgress = MutableStateFlow(0f)
+    val playbackProgress = _playbackProgress.asStateFlow()
+
+    private var mediaPlayer: android.media.MediaPlayer? = null
+    private var playbackTimerJob: kotlinx.coroutines.Job? = null
+
+    // Временные переменные для фото и видео
+    private var tempPhotoPath: String? = null
+    private var tempVideoPath: String? = null
 
     init {
         loadEntry()
@@ -135,6 +149,46 @@ class EntryViewModel(
         _documents.value = _documents.value.filter { it != path }
     }
 
+    // Функции для создания файлов фото и видео
+    fun createImageFile(context: Context): File {
+        val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
+        val imageFileName = "JPEG_${timeStamp}_"
+        val storageDir = context.getExternalFilesDir(Environment.DIRECTORY_PICTURES)
+        return File.createTempFile(imageFileName, ".jpg", storageDir).apply {
+            tempPhotoPath = absolutePath
+        }
+    }
+
+    fun createVideoFile(context: Context): File {
+        val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
+        val videoFileName = "VIDEO_${timeStamp}_"
+        val storageDir = context.getExternalFilesDir(Environment.DIRECTORY_MOVIES)
+        return File.createTempFile(videoFileName, ".mp4", storageDir).apply {
+            tempVideoPath = absolutePath
+        }
+    }
+
+    // Функции для получения временных путей
+    fun getTempPhotoPath(): String? = tempPhotoPath
+
+    fun getTempVideoPath(): String? = tempVideoPath
+
+    fun clearTempPhotoPath() {
+        tempPhotoPath = null
+    }
+
+    fun clearTempVideoPath() {
+        tempVideoPath = null
+    }
+
+    fun addPhotoFromCamera(photoPath: String) {
+        _images.value = _images.value + photoPath
+    }
+
+    fun addVideoFromCamera(videoPath: String) {
+        _videos.value = _videos.value + videoPath
+    }
+
     // Функции для записи аудио
     fun startRecording(context: Context) {
         if (_isRecording.value) return
@@ -143,7 +197,6 @@ class EntryViewModel(
             val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
             val fileName = "audio_${timeStamp}.3gp"
 
-            // Сохраняем в папку приложения
             val audioDir = File(context.getExternalFilesDir(Environment.DIRECTORY_MUSIC), "recordings")
             if (!audioDir.exists()) {
                 audioDir.mkdirs()
@@ -165,7 +218,6 @@ class EntryViewModel(
             _isRecording.value = true
             recordingStartTime = System.currentTimeMillis()
 
-            // Запускаем таймер
             recordingTimerJob = viewModelScope.launch {
                 while (_isRecording.value) {
                     kotlinx.coroutines.delay(100)
@@ -250,5 +302,62 @@ class EntryViewModel(
 
         _isSaving.value = false
         return result.isSuccess
+    }
+
+    fun startPlayback(audioPath: String) {
+        stopPlayback()
+
+        try {
+            mediaPlayer = android.media.MediaPlayer().apply {
+                setDataSource(audioPath)
+                prepare()
+                start()
+                setOnCompletionListener {
+                    stopPlayback()
+                }
+            }
+
+            _isPlaying.value = audioPath
+            recordingStartTime = System.currentTimeMillis()
+
+            playbackTimerJob = viewModelScope.launch {
+                while (_isPlaying.value != null) {
+                    delay(100)
+                    mediaPlayer?.let { mp ->
+                        if (mp.isPlaying) {
+                            _playbackProgress.value = mp.currentPosition.toFloat() / mp.duration
+                        }
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            stopPlayback()
+        }
+    }
+
+    fun stopPlayback() {
+        mediaPlayer?.let {
+            if (it.isPlaying) it.stop()
+            it.release()
+        }
+        mediaPlayer = null
+        playbackTimerJob?.cancel()
+        _isPlaying.value = null
+        _playbackProgress.value = 0f
+    }
+
+    fun togglePlayback(audioPath: String) {
+        if (_isPlaying.value == audioPath) {
+            stopPlayback()
+        } else {
+            startPlayback(audioPath)
+        }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        stopRecording()
+        stopPlayback()
     }
 }
