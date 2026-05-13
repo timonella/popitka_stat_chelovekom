@@ -77,7 +77,6 @@ class SettingsViewModel(
         _exportError.value = null
 
         val result = try {
-            // Получаем все записи - используем first() на Flow
             val entriesFlow = diaryRepository.getAllEntries()
             val entries = entriesFlow.first()
 
@@ -112,7 +111,6 @@ class SettingsViewModel(
             _isLoading.value = true
             val result = authRepository.logout()
             if (result.isSuccess) {
-                // Очищаем PIN-код при выходе
                 settingsDataStore.clearPin()
                 onSuccess()
             }
